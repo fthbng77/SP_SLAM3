@@ -105,85 +105,80 @@ void NMS2(std::vector<cv::KeyPoint> det, cv::Mat conf, std::vector<cv::KeyPoint>
 
 cv::Mat SPdetect(std::shared_ptr<SuperPoint> model, cv::Mat img, std::vector<cv::KeyPoint> &keypoints, double threshold, bool nms, bool cuda)
 {
+    // Giriş görüntüsünü tensöre çevir
     auto x = torch::from_blob(img.ptr(), {1, 1, img.rows, img.cols}, torch::kUInt8)
                 .to(torch::kFloat32)
                 .div(255.0)
                 .contiguous();
 
-
+    // CUDA kullanılacak mı?
     bool use_cuda = cuda && torch::cuda::is_available();
-    torch::DeviceType device_type;
-    if (use_cuda)
-        device_type = torch::kCUDA;
-    else
-        device_type = torch::kCPU;
-    torch::Device device(device_type);
+    torch::Device device = use_cuda ? torch::Device(torch::kCUDA) : torch::Device(torch::kCPU);
 
+    // Modeli doğru cihaza gönder
     model->to(device);
-    x = x.set_requires_grad(false);
-    auto out = model->forward(x.to(device));
-    auto prob = out[0].squeeze(0).to(torch::kCPU).contiguous();  // [H, W]
-    auto desc = out[1];             // [1, 256, H/8, W/8]
+    model->eval();
 
+    // Görüntüyü GPU'ya taşı
+    x = x.to(device).set_requires_grad(false);
+
+    // İleri besleme
+    auto out = model->forward(x);
+    auto prob = out[0].squeeze(0).to(torch::kCPU).contiguous();  // keypoint heatmap
+    auto desc = out[1].to(device);                               // descriptor [1, 256, H/8, W/8]
+
+    // Eşikleme ile anahtar noktaları bul
     auto kpts = (prob > threshold);
-
-    kpts = torch::nonzero(kpts);  // [n_keypoints, 2]  (y, x)
+    kpts = torch::nonzero(kpts);
     auto fkpts = kpts.to(torch::kFloat);
-    auto grid_size = std::vector<int64_t>{1, 1, kpts.size(0), 2};
-    auto grid = torch::zeros(grid_size, torch::TensorOptions().device(device));  // [1, 1, n_keypoints, 2]
-    grid[0][0].slice(1, 0, 1) = 2.0 * fkpts.slice(1, 1, 2) / prob.size(1) - 1;  // x
-    grid[0][0].slice(1, 1, 2) = 2.0 * fkpts.slice(1, 0, 1) / prob.size(0) - 1;  // y
 
-    desc = torch::grid_sampler(desc, grid, 0, 0, false);  // [1, 256, 1, n_keypoints]
-    desc = desc.squeeze(0).squeeze(1);  // [256, n_keypoints]
+    // Grid sampler için grid oluştur
+    auto grid = torch::zeros({1, 1, kpts.size(0), 2}, torch::TensorOptions().device(device));
+    grid[0][0].slice(1, 0, 1) = 2.0 * fkpts.slice(1, 1, 2) / prob.size(1) - 1; // x
+    grid[0][0].slice(1, 1, 2) = 2.0 * fkpts.slice(1, 0, 1) / prob.size(0) - 1; // y
 
-    // normalize to 1
-    auto dn = torch::norm(desc, 2, 1);
-    desc = desc.div(torch::unsqueeze(dn, 1));
+    // Deskriptör çıkarımı
+    desc = torch::grid_sampler(desc, grid, 0, 0, false).squeeze(0).squeeze(1);  // [256, N]
+    desc = torch::nn::functional::normalize(desc, torch::nn::functional::NormalizeFuncOptions().p(2).dim(0));
 
-    desc = desc.transpose(0, 1).contiguous();  // [n_keypoints, 256]
+    desc = desc.transpose(0, 1).contiguous();  // [N, 256]
 
     if (use_cuda)
-        desc = desc.to(torch::kCPU).contiguous();
-        
+        desc = desc.to(torch::kCPU);
+
+    // OpenCV’ye çevir
     cv::Mat descriptors_no_nms(cv::Size(desc.size(1), desc.size(0)), CV_32FC1, desc.data_ptr<float>());
-    
+
+    // Anahtar noktaları oluştur
     std::vector<cv::KeyPoint> keypoints_no_nms;
     for (int i = 0; i < kpts.size(0); i++) {
-        float response = prob[kpts[i][0]][kpts[i][1]].item<float>();
-        keypoints_no_nms.push_back(cv::KeyPoint(kpts[i][1].item<float>(), kpts[i][0].item<float>(), 8, -1, response));
+        int y = kpts[i][0].item<int>();
+        int x = kpts[i][1].item<int>();
+        float response = prob[y][x].item<float>();
+        keypoints_no_nms.emplace_back(x, y, 8, -1, response);
     }
 
+    // NMS uygulanacak mı?
     if (nms) {
         cv::Mat kpt_mat(keypoints_no_nms.size(), 2, CV_32F);
         cv::Mat conf(keypoints_no_nms.size(), 1, CV_32F);
         for (size_t i = 0; i < keypoints_no_nms.size(); i++) {
-            int x = keypoints_no_nms[i].pt.x;
-            int y = keypoints_no_nms[i].pt.y;
-            kpt_mat.at<float>(i, 0) = (float)keypoints_no_nms[i].pt.x;
-            kpt_mat.at<float>(i, 1) = (float)keypoints_no_nms[i].pt.y;
-
+            kpt_mat.at<float>(i, 0) = keypoints_no_nms[i].pt.x;
+            kpt_mat.at<float>(i, 1) = keypoints_no_nms[i].pt.y;
+            int x = (int)keypoints_no_nms[i].pt.x;
+            int y = (int)keypoints_no_nms[i].pt.y;
             conf.at<float>(i, 0) = prob[y][x].item<float>();
         }
 
         cv::Mat descriptors;
-
-        int border = 8;
-        int dist_thresh = 4;
-        int height = img.rows;
-        int width = img.cols;
-
-
-        NMS(kpt_mat, conf, descriptors_no_nms, keypoints, descriptors, border, dist_thresh, width, height);
-
+        int border = 8, dist_thresh = 4;
+        NMS(kpt_mat, conf, descriptors_no_nms, keypoints, descriptors, border, dist_thresh, img.cols, img.rows);
         return descriptors;
     }
     else {
         keypoints = keypoints_no_nms;
         return descriptors_no_nms.clone();
     }
-
-    // return descriptors.clone();
 }
 
 
