@@ -20,6 +20,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
+find_package(Sophus REQUIRED)
 
 find_package(OpenCV 3)
 if(NOT OpenCV_FOUND)
@@ -42,6 +43,7 @@ include_directories(
         ${PROJECT_SOURCE_DIR}/include/CameraModels
         ${EIGEN3_INCLUDE_DIR}
         ${Pangolin_INCLUDE_DIRS}
+        ${PROJECT_SOURCE_DIR}/Thirdparty/Sophus
 )
 
 add_compile_options(
