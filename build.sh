@@ -23,5 +23,6 @@ mkdir build
 cd build
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
-  -DUSE_CUDA=ON
+  -DUSE_CUDA=ON \
+  -DTorch_DIR="/home/fatih/libtorch/share/cmake/Torch"
 make -j$(nproc)
