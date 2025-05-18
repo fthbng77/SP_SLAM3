@@ -418,7 +418,7 @@ void SPextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoint
     for (int level = 0; level < nlevels; ++level)
     {
         SPDetector detector(model);
-        detector.detect(mvImagePyramid[level], false);
+        detector.detect(mvImagePyramid[level], true);
 
         const int minBorderX = EDGE_THRESHOLD-3;
         const int minBorderY = minBorderX;
@@ -435,7 +435,8 @@ void SPextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoint
         const int nRows = height/W;
         const int wCell = ceil(width/nCols);
         const int hCell = ceil(height/nRows);
-
+        std::cout << "[INFO] SPextractor::operator(): GPU kullanılıyor mu? "
+          << (torch::cuda::is_available() ? "EVET" : "HAYIR") << std::endl;
         for(int i=0; i<nRows; i++)
         {
             const float iniY =minBorderY+i*hCell;
@@ -500,6 +501,35 @@ void SPextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoint
 
         cv::Mat desc;
         detector.computeDescriptors(keypoints, desc);
+        if (!desc.empty())
+        {
+            if (desc.cols != 256 || desc.type() != CV_32F)
+            {
+                std::cerr << "[WARNING] Descriptor format mismatch! Reshaping or converting..." << std::endl;
+
+                if (desc.cols != 256)
+                {
+                    std::cerr << " - cols: " << desc.cols << " -> expected: 256" << std::endl;
+                    if (desc.total() == 256) {
+                        desc = desc.reshape(1, 1);  // 256'lık vektörü tek satıra çevir
+                    } else if (desc.cols > 256) {
+                        desc = desc.colRange(0, 256); // fazlalığı kes
+                    } else {
+                        // cols < 256 ise sıfırlarla doldur
+                        cv::Mat padded = cv::Mat::zeros(desc.rows, 256, desc.type());
+                        desc.copyTo(padded.colRange(0, desc.cols));
+                        desc = padded;
+                    }
+                }
+                if (desc.type() != CV_32F)
+                {
+                    desc.convertTo(desc, CV_32F);
+                }
+            }
+
+            vDesc.push_back(desc);
+        }
+
         vDesc.push_back(desc);
     }
 
@@ -630,3 +660,4 @@ void SPextractor::ComputePyramid(cv::Mat image)
 }
 
 } //namespace ORB_SLAM
+
