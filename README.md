@@ -95,5 +95,6 @@ chmod +x build.sh
 Bu şekilde superpoint kullanılarak çalıştırılabilir yaml dosyasındaki threshold
 ```shell
 cd SP_SLAM3
+export LD_LIBRARY_PATH=/home/fatih/SP_SLAM3/lib:$LD_LIBRARY_PATH
 ./Examples/Monocular/mono_webcam Vocabulary/ORBvoc.txt Examples/Monocular/EuRoC.yaml
 ```
