@@ -12,12 +12,30 @@ repository](https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork).
 # 1. Prerequisites
 We have tested the libraries and executables on **Ubuntu 20.04**.
 
-## C++11 or C++0x Compiler
+## C++17 or C++0x Compiler
 ORBSLAM3 uses the new thread and chrono functionalities of C++17.
 
 ## OpenCV
 We use [OpenCV](http://opencv.org) to manipulate images and features. Dowload and install instructions can be found at: http://opencv.org. **Required at least 3.0. Tested with OpenCV 3.4.11**.
+```
+sudo apt-get update
 
+sudo apt-get install build-essential cmake git pkg-config libgtk-3-dev     libavcodec-dev libavformat-dev libswscale-dev libv4l-dev     libxvidcore-dev libx264-dev libjpeg-dev libpng-dev libtiff-dev     gfortran openexr libatlas-base-dev python3-dev python3-numpy libtbb2 libtbb-dev libdc1394-22-dev
+
+cd ~
+
+git clone https://github.com/opencv/opencv.git
+cd opencv
+git checkout 3.4.16
+
+mkdir build && cd build
+
+cmake -D CMAKE_BUILD_TYPE=Release       -D CMAKE_INSTALL_PREFIX=/usr/local       -D OPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules       -D BUILD_EXAMPLES=ON ..
+
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
 ## Eigen3
 Required by g2o (see below). Download and install instructions can be found at: http://eigen.tuxfamily.org. **Required at least 3.1.0. Tested with Eigen3 3.4.0**.
 
@@ -31,7 +49,7 @@ For more informations please refer to [this repo](https://github.com/Kasper-Borz
 ## Nvidia-driver & Cuda Toolkit 12.2 with cuDNN 8.9.1
 Please, follow these [instructions](https://developer.nvidia.com/cuda-12.2-download-archive) for the installation of the Cuda Toolkit 12.2.
 
-If not installed during the Cuda Toolkit installation process, please install the nvidia driver 440:
+If not installed during the Cuda Toolkit installation process, please install the nvidia driver 535:
 ``` shell
 sudo apt-get install nvidia-driver-535
 ```
@@ -50,7 +68,7 @@ nvidia-smi
 ```
 
 
-## LibTorch 1.6.0 version (with GPU | Cuda Toolkit 10.2, cuDNN 7.6.5)
+## LibTorch 1.6.0 version (with GPU | Cuda Toolkit 12.2, cuDNN 8.9.1)
 If only CPU can be used, install cpu-version LibTorch. Some code change about tensor device should be required.
 
 ```shell
