@@ -45,6 +45,10 @@ sudo ldconfig
 ## Eigen3
 Required by g2o (see below). Download and install instructions can be found at: http://eigen.tuxfamily.org. **Required at least 3.1.0. Tested with Eigen3 3.4.0**.
 
+```
+sudo apt install libeigen3-dev
+```
+
 ## DBoW3, DBoW2, Pangolin and g2o (Included in Thirdparty folder)
 We use a BOW vocabulary based on the [BOW3](https://github.com/rmsalinas/DBow3) library to perform place recognition, and [g2o](https://github.com/RainerKuemmerle/g2o) library is used to perform non-linear optimizations. All these libraries are included in the *Thirdparty* folder.
 
