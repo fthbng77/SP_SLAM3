@@ -28,6 +28,12 @@ git clone https://github.com/opencv/opencv.git
 cd opencv
 git checkout 3.4.16
 
+cd ~
+git clone https://github.com/opencv/opencv_contrib.git
+cd opencv_contrib
+git checkout 3.4.16
+
+cd opencv
 mkdir build && cd build
 
 cmake -D CMAKE_BUILD_TYPE=Release       -D CMAKE_INSTALL_PREFIX=/usr/local       -D OPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules       -D BUILD_EXAMPLES=ON ..
