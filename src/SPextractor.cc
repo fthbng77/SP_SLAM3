@@ -410,9 +410,7 @@ vector<cv::KeyPoint> SPextractor::DistributeOctTree(const vector<cv::KeyPoint>& 
 void SPextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoints, cv::Mat &_desc)
 {
     allKeypoints.resize(nlevels);
-
     vector<cv::Mat> vDesc;
-
     const float W = 30;
 
     for (int level = 0; level < nlevels; ++level)
@@ -420,125 +418,109 @@ void SPextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoint
         SPDetector detector(model);
         detector.detect(mvImagePyramid[level], true);
 
-        const int minBorderX = EDGE_THRESHOLD-3;
+        const int minBorderX = EDGE_THRESHOLD - 3;
         const int minBorderY = minBorderX;
-        const int maxBorderX = mvImagePyramid[level].cols-EDGE_THRESHOLD+3;
-        const int maxBorderY = mvImagePyramid[level].rows-EDGE_THRESHOLD+3;
+        const int maxBorderX = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
+        const int maxBorderY = mvImagePyramid[level].rows - EDGE_THRESHOLD + 3;
 
         vector<cv::KeyPoint> vToDistributeKeys;
-        vToDistributeKeys.reserve(nfeatures*10);
+        vToDistributeKeys.reserve(nfeatures * 10);
 
-        const float width = (maxBorderX-minBorderX);
-        const float height = (maxBorderY-minBorderY);
+        const float width = (maxBorderX - minBorderX);
+        const float height = (maxBorderY - minBorderY);
 
-        const int nCols = width/W;
-        const int nRows = height/W;
-        const int wCell = ceil(width/nCols);
-        const int hCell = ceil(height/nRows);
+        const int nCols = width / W;
+        const int nRows = height / W;
+        const int wCell = ceil(width / nCols);
+        const int hCell = ceil(height / nRows);
+
         std::cout << "[INFO] SPextractor::operator(): GPU kullanılıyor mu? "
-          << (torch::cuda::is_available() ? "EVET" : "HAYIR") << std::endl;
-        for(int i=0; i<nRows; i++)
+                  << (torch::cuda::is_available() ? "EVET" : "HAYIR") << std::endl;
+
+        for (int i = 0; i < nRows; i++)
         {
-            const float iniY =minBorderY+i*hCell;
-            float maxY = iniY+hCell+6;
+            const float iniY = minBorderY + i * hCell;
+            float maxY = iniY + hCell + 6;
 
-            if(iniY>=maxBorderY-3)
-                continue;
-            if(maxY>maxBorderY)
-                maxY = maxBorderY;
+            if (iniY >= maxBorderY - 3) continue;
+            if (maxY > maxBorderY) maxY = maxBorderY;
 
-            for(int j=0; j<nCols; j++)
+            for (int j = 0; j < nCols; j++)
             {
-                const float iniX =minBorderX+j*wCell;
-                float maxX = iniX+wCell+6;
-                if(iniX>=maxBorderX-6)
-                    continue;
-                if(maxX>maxBorderX)
-                    maxX = maxBorderX;
+                const float iniX = minBorderX + j * wCell;
+                float maxX = iniX + wCell + 6;
+
+                if (iniX >= maxBorderX - 6) continue;
+                if (maxX > maxBorderX) maxX = maxBorderX;
 
                 vector<cv::KeyPoint> vKeysCell;
-                // FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
-                //      vKeysCell,iniThFAST,true);
                 detector.getKeyPoints(iniThFAST, iniX, maxX, iniY, maxY, vKeysCell, true);
 
-                if(vKeysCell.empty())
-                {
-                    // FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
-                    //      vKeysCell,minThFAST,true);
+                if (vKeysCell.empty())
                     detector.getKeyPoints(minThFAST, iniX, maxX, iniY, maxY, vKeysCell, true);
-                }
 
-                if(!vKeysCell.empty())
+                for (auto& kp : vKeysCell)
                 {
-                    for(vector<cv::KeyPoint>::iterator vit=vKeysCell.begin(); vit!=vKeysCell.end();vit++)
-                    {
-                        (*vit).pt.x+=j*wCell;
-                        (*vit).pt.y+=i*hCell;
-                        vToDistributeKeys.push_back(*vit);
-                    }
+                    kp.pt.x += j * wCell;
+                    kp.pt.y += i * hCell;
+                    vToDistributeKeys.push_back(kp);
                 }
-
             }
         }
 
-        vector<KeyPoint> & keypoints = allKeypoints[level];
+        vector<KeyPoint>& keypoints = allKeypoints[level];
         keypoints.reserve(nfeatures);
 
         keypoints = DistributeOctTree(vToDistributeKeys, minBorderX, maxBorderX,
-                                      minBorderY, maxBorderY,mnFeaturesPerLevel[level], level);
+                                      minBorderY, maxBorderY, mnFeaturesPerLevel[level], level);
 
-        const int scaledPatchSize = PATCH_SIZE*mvScaleFactor[level];
+        const int scaledPatchSize = PATCH_SIZE * mvScaleFactor[level];
 
-        // Add border to coordinates and scale information
-        const int nkps = keypoints.size();
-        for(int i=0; i<nkps ; i++)
+        for (auto& kp : keypoints)
         {
-            keypoints[i].pt.x+=minBorderX;
-            keypoints[i].pt.y+=minBorderY;
-            keypoints[i].octave=level;
-            keypoints[i].size = scaledPatchSize;
+            kp.pt.x += minBorderX;
+            kp.pt.y += minBorderY;
+            kp.octave = level;
+            kp.size = scaledPatchSize;
         }
 
         cv::Mat desc;
         detector.computeDescriptors(keypoints, desc);
+
         if (!desc.empty())
         {
             if (desc.cols != 256 || desc.type() != CV_32F)
             {
-                std::cerr << "[WARNING] Descriptor format mismatch! Reshaping or converting..." << std::endl;
+                std::cerr << "[WARNING] Descriptor format mismatch! Fixing..." << std::endl;
 
                 if (desc.cols != 256)
                 {
-                    std::cerr << " - cols: " << desc.cols << " -> expected: 256" << std::endl;
-                    if (desc.total() == 256) {
-                        desc = desc.reshape(1, 1);  // 256'lık vektörü tek satıra çevir
-                    } else if (desc.cols > 256) {
-                        desc = desc.colRange(0, 256); // fazlalığı kes
-                    } else {
-                        // cols < 256 ise sıfırlarla doldur
+                    if (desc.total() == 256)
+                        desc = desc.reshape(1, 1);
+                    else if (desc.cols > 256)
+                        desc = desc.colRange(0, 256);
+                    else
+                    {
                         cv::Mat padded = cv::Mat::zeros(desc.rows, 256, desc.type());
                         desc.copyTo(padded.colRange(0, desc.cols));
                         desc = padded;
                     }
                 }
+
                 if (desc.type() != CV_32F)
-                {
                     desc.convertTo(desc, CV_32F);
-                }
             }
 
             vDesc.push_back(desc);
         }
-
-        vDesc.push_back(desc);
     }
 
-    cv::vconcat(vDesc, _desc);
-
-    // // compute orientations
-    // for (int level = 0; level < nlevels; ++level)
-    //     computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);
+    if (!vDesc.empty())
+        cv::vconcat(vDesc, _desc);
+    else
+        _desc = cv::Mat();  // Boş descriptor
 }
+
 
 
 void SPextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
@@ -559,10 +541,8 @@ void SPextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoi
     ComputeKeyPointsOctTree(allKeypoints, descriptors);
     cout << "desc.rows: " << descriptors.rows << endl;
 
+    int nkeypoints = descriptors.rows;
 
-    int nkeypoints = 0;
-    for (int level = 0; level < nlevels; ++level)
-        nkeypoints += (int)allKeypoints[level].size();
     if( nkeypoints == 0 )
         _descriptors.release();
     else
