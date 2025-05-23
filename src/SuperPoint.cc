@@ -105,60 +105,46 @@ void NMS2(std::vector<cv::KeyPoint> det, cv::Mat conf, std::vector<cv::KeyPoint>
 
 cv::Mat SPdetect(std::shared_ptr<SuperPoint> model, cv::Mat img, std::vector<cv::KeyPoint> &keypoints, double threshold, bool nms, bool cuda)
 {
-    // Giriş görüntüsünü tensöre çevir
     auto x = torch::from_blob(img.ptr(), {1, 1, img.rows, img.cols}, torch::kUInt8)
-                .to(torch::kFloat32)
-                .div(255.0)
-                .contiguous();
+                .to(torch::kFloat32).div(255.0).contiguous();
 
-    // CUDA kullanılacak mı?
     bool use_cuda = cuda && torch::cuda::is_available();
     torch::Device device = use_cuda ? torch::Device(torch::kCUDA) : torch::Device(torch::kCPU);
 
-    // Modeli doğru cihaza gönder
     model->to(device);
     model->eval();
-
-    // Görüntüyü GPU'ya taşı
     x = x.to(device).set_requires_grad(false);
 
-    // İleri besleme
     auto out = model->forward(x);
-    auto prob = out[0].squeeze(0).to(torch::kCPU).contiguous();  // keypoint heatmap
-    auto desc = out[1].to(device);                               // descriptor [1, 256, H/8, W/8]
+    auto prob = out[0].squeeze(0).to(torch::kCPU).contiguous();  // [H, W]
+    auto desc = out[1].to(device);                               // [1, 256, H/8, W/8]
 
-    // Eşikleme ile anahtar noktaları bul
-    auto kpts = (prob > threshold);
-    kpts = torch::nonzero(kpts);
+    auto kpts = torch::nonzero(prob > threshold);
     auto fkpts = kpts.to(torch::kFloat);
 
-    // Grid sampler için grid oluştur
     auto grid = torch::zeros({1, 1, kpts.size(0), 2}, torch::TensorOptions().device(device));
-    grid[0][0].slice(1, 0, 1) = 2.0 * fkpts.slice(1, 1, 2) / prob.size(1) - 1; // x
-    grid[0][0].slice(1, 1, 2) = 2.0 * fkpts.slice(1, 0, 1) / prob.size(0) - 1; // y
+    grid[0][0].slice(1, 0, 1) = 2.0 * fkpts.slice(1, 1, 2) / prob.size(1) - 1;
+    grid[0][0].slice(1, 1, 2) = 2.0 * fkpts.slice(1, 0, 1) / prob.size(0) - 1;
 
-    // Deskriptör çıkarımı
-    desc = torch::grid_sampler(desc, grid, 0, 0, false).squeeze(0).squeeze(1);  // [256, N]
+    desc = torch::grid_sampler(desc, grid, 0, 0, false).squeeze(0).squeeze(1);
     desc = torch::nn::functional::normalize(desc, torch::nn::functional::NormalizeFuncOptions().p(2).dim(0));
+    desc = desc.transpose(0, 1).contiguous().to(torch::kCPU);
 
-    desc = desc.transpose(0, 1).contiguous();  // [N, 256]
-
-    if (use_cuda)
-        desc = desc.to(torch::kCPU);
-
-    // OpenCV’ye çevir
     cv::Mat descriptors_no_nms(cv::Size(desc.size(1), desc.size(0)), CV_32FC1, desc.data_ptr<float>());
 
-    // Anahtar noktaları oluştur
     std::vector<cv::KeyPoint> keypoints_no_nms;
+    float maxResp = 0.0f;
     for (int i = 0; i < kpts.size(0); i++) {
         int y = kpts[i][0].item<int>();
         int x = kpts[i][1].item<int>();
         float response = prob[y][x].item<float>();
         keypoints_no_nms.emplace_back(x, y, 8, -1, response);
+        maxResp = std::max(maxResp, response);
     }
 
-    // NMS uygulanacak mı?
+    for (auto& kp : keypoints_no_nms)
+        kp.response /= (maxResp + 1e-6f);
+
     if (nms) {
         cv::Mat kpt_mat(keypoints_no_nms.size(), 2, CV_32F);
         cv::Mat conf(keypoints_no_nms.size(), 1, CV_32F);
@@ -171,11 +157,11 @@ cv::Mat SPdetect(std::shared_ptr<SuperPoint> model, cv::Mat img, std::vector<cv:
         }
 
         cv::Mat descriptors;
-        int border = 8, dist_thresh = 4;
+        int border = std::max(4, std::min(img.cols, img.rows) / 50);
+        int dist_thresh = 4;
         NMS(kpt_mat, conf, descriptors_no_nms, keypoints, descriptors, border, dist_thresh, img.cols, img.rows);
         return descriptors;
-    }
-    else {
+    } else {
         keypoints = keypoints_no_nms;
         return descriptors_no_nms.clone();
     }
@@ -186,28 +172,31 @@ SPDetector::SPDetector(std::shared_ptr<SuperPoint> _model) : model(_model)
 {
 }
 
-void SPDetector::detect(cv::Mat &img, bool cuda)
+void SPDetector::detect(cv::Mat &img, bool use_cuda)
 {
-    auto x = torch::from_blob(img.clone().data, {1, 1, img.rows, img.cols}, torch::kByte);
-    x = x.to(torch::kFloat) / 255;
+    std::cout << "[DEBUG] SPDetector::detect() fonksiyonuna girildi" << std::endl;
 
-    bool use_cuda = cuda && torch::cuda::is_available();
-    torch::DeviceType device_type;
-    if (use_cuda)
-        device_type = torch::kCUDA;
-    else
-        device_type = torch::kCPU;
-    torch::Device device(device_type);
+    torch::Device device = (use_cuda && torch::cuda::is_available()) ? torch::kCUDA : torch::kCPU;
+    std::cout << "[INFO] Using device: " << (device.is_cuda() ? "CUDA" : "CPU") << std::endl;
 
+    // Görüntüyü Float32 + normalize (0-1) + contiguous hale getir
+    auto x = torch::from_blob(img.data, {1, 1, img.rows, img.cols}, torch::kUInt8)
+                 .to(torch::kFloat32)
+                 .div(255.0)
+                 .contiguous()
+                 .to(device);
+
+    // Modeli doğru cihaza gönder ve eval moduna al
     model->to(device);
-    x = x.set_requires_grad(false);
-    auto out = model->forward(x.to(device));
+    model->eval();
 
-    mProb = out[0].squeeze(0);  // [H, W]
-    mDesc = out[1];             // [1, 256, H/8, W/8]
+    // Forward işlemi
+    auto out = model->forward(x);
 
+    // Çıktılar: [prob, desc]
+    mProb = out[0].squeeze(0).to(torch::kCPU).contiguous();  // [H, W]
+    mDesc = out[1].to(device).contiguous();                  // [1, 256, H/8, W/8]
 }
-
 
 void SPDetector::getKeyPoints(float threshold, int iniX, int maxX, int iniY, int maxY, std::vector<cv::KeyPoint> &keypoints, bool nms)
 {
@@ -252,10 +241,10 @@ void SPDetector::computeDescriptors(const std::vector<cv::KeyPoint> &keypoints, 
         kpt_mat.at<float>(i, 0) = (float)keypoints[i].pt.y;
         kpt_mat.at<float>(i, 1) = (float)keypoints[i].pt.x;
     }
+    auto device = mDesc.device();
+    auto fkpts = torch::from_blob(kpt_mat.data, {static_cast<long>(keypoints.size()), 2}, torch::kFloat).to(device);
 
-    auto fkpts = torch::from_blob(kpt_mat.data, {keypoints.size(), 2}, torch::kFloat);
-
-    auto grid = torch::zeros({1, 1, fkpts.size(0), 2});  // [1, 1, n_keypoints, 2]
+    auto grid = torch::zeros({1, 1, fkpts.size(0), 2}, torch::TensorOptions().device(device));  // [1, 1, n_keypoints, 2]
     grid[0][0].slice(1, 0, 1) = 2.0 * fkpts.slice(1, 1, 2) / mProb.size(1) - 1;  // x
     grid[0][0].slice(1, 1, 2) = 2.0 * fkpts.slice(1, 0, 1) / mProb.size(0) - 1;  // y
 
