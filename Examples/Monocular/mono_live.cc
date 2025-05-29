@@ -34,7 +34,6 @@ int main(int argc, char **argv)
 
     ORB_SLAM3::System SLAM(vocab_path, settings_path, ORB_SLAM3::System::MONOCULAR, true);
 
-    float imageScale = SLAM.GetImageScale();  // önemli
 
     cv::VideoCapture cap(0);
     if(!cap.isOpened())
@@ -57,13 +56,6 @@ int main(int argc, char **argv)
         cv::Mat frame, gray;
         cap >> frame;
         if(frame.empty()) break;
-
-        if(imageScale != 1.f)
-        {
-            int width = frame.cols * imageScale;
-            int height = frame.rows * imageScale;
-            cv::resize(frame, frame, cv::Size(width, height));
-        }
 
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
 
