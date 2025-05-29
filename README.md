@@ -6,6 +6,9 @@ superpoint ile orbslam birlikte kullanılmıştır.
 
 In the SUPERSLAM3 pipeline, input images are converted to grayscale and fed into the Superpoint detector pipeline (A). The Superpoint encoder-decoder pipeline consists of a learned encoder, utilizing several convolutional layers, and two non-learned decoders for joint feature and descriptor extraction. The detected features are then processed by the ORB-SLAM3 backend, which comprises three primary components operating in parallel threads: the Tracking, Local Mapping, and Loop & Map Merging threads (B). The backend extracts keyframes, initializes and updates the map, and performs both local and global motion and pose estimation within the Local Mapping Thread and Loop & Map Merging thread. If a loop closure is detected, the pose estimation is further refined.
 
+![img1](imgs/img_1.jpg)
+![img2](imgs/img_2.jpg)
+
 This repository was forked from [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3). The pre-trained model of SuperPoint come from the official [MagicLeap 
 repository](https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork).
 
