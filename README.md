@@ -110,4 +110,6 @@ Bu şekilde superpoint kullanılarak çalıştırılabilir yaml dosyasındaki th
 cd SP_SLAM3
 export LD_LIBRARY_PATH=/home/fatih/SP_SLAM3/lib:$LD_LIBRARY_PATH
 ./Examples/Monocular/mono_webcam Vocabulary/ORBvoc.txt Examples/Monocular/EuRoC.yaml
+# or with superpoint Vocabulary
+./Examples/Monocular/mono_webcam Vocabulary/superpoint_voc.yml Examples/Monocular/EuRoC.yaml
 ```
