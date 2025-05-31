@@ -152,3 +152,5 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
 add_executable(mono_webcam
         Examples/Monocular/mono_webcam.cc)
 target_link_libraries(mono_webcam ${PROJECT_NAME})
+
+
