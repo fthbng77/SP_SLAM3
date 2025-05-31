@@ -9,6 +9,9 @@ In the SUPERSLAM3 pipeline, input images are converted to grayscale and fed into
 ![img1](imgs/img_1.jpg)
 ![img2](imgs/img_2.jpg)
 
+
+[![Watch the video](https://img.youtube.com/vi/AWvs2rZ45cA/hqdefault.jpg)](https://youtu.be/AWvs2rZ45cA)
+
 This repository was forked from [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3). The pre-trained model of SuperPoint come from the official [MagicLeap 
 repository](https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork).
 
