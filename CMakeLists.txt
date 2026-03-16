@@ -11,7 +11,13 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall   -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
-set(Torch_DIR "/home/fatih/libtorch/share/cmake/Torch")
+if(NOT DEFINED Torch_DIR)
+  if(DEFINED ENV{TORCH_DIR})
+    set(Torch_DIR $ENV{TORCH_DIR})
+  else()
+    set(Torch_DIR "/usr/local/libtorch/share/cmake/Torch")
+  endif()
+endif()
 find_package(Torch REQUIRED)
 
 include(CheckCXXCompilerFlag)
@@ -102,7 +108,6 @@ add_library(${PROJECT_NAME} SHARED
 
         include/SPextractor.h
         include/SPmatcher.h
-	    include/Old.h
 	    include/SPVocabulary.h
 	    include/SuperPoint.h
 
@@ -152,5 +157,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
 add_executable(mono_webcam
         Examples/Monocular/mono_webcam.cc)
 target_link_libraries(mono_webcam ${PROJECT_NAME})
+
+add_executable(mono_live
+        Examples/Monocular/mono_live.cc)
+target_link_libraries(mono_live ${PROJECT_NAME})
 
 
