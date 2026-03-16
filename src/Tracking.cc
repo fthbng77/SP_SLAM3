@@ -2928,13 +2928,19 @@ void Tracking::CreateNewKeyFrame()
     }
 
 
+    // Compute global descriptor for place recognition
+    if (mpPlaceRecognition && mpPlaceRecognition->isLoaded())
+    {
+        pKF->mGlobalDescriptor = mpPlaceRecognition->extractDescriptor(mImGray);
+        mpPlaceRecognition->add(pKF, pKF->mGlobalDescriptor);
+    }
+
     mpLocalMapper->InsertKeyFrame(pKF);
 
     mpLocalMapper->SetNotStop(false);
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
     mpLastKeyFrame = pKF;
-    //cout  << "end creating new KF" << endl;
 }
 
 void Tracking::SearchLocalPoints()

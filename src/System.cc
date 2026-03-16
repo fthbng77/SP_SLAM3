@@ -22,6 +22,7 @@
 #include "Converter.h"
 #include "SPmatcher.h"
 #include "LightGlue.h"
+#include "PlaceRecognition.h"
 #include <thread>
 #include <pangolin/pangolin.h>
 #include <iomanip>
@@ -142,6 +143,24 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     //Initialize the Loop Closing thread and launch
     // mSensor!=MONOCULAR && mSensor!=IMU_MONOCULAR
     mpLoopCloser = new LoopClosing(mpAtlas, mpKeyFrameDatabase, mpVocabulary, mSensor!=MONOCULAR); // mSensor!=MONOCULAR);
+
+    // Load PlaceRecognition model (NetVLAD/CosPlace) if specified
+    cv::FileNode prNode = fsSettings["PlaceRecognition.model_path"];
+    if (!prNode.empty())
+    {
+        string prModelPath = (string)prNode;
+        bool prUseFP16 = false;
+        cv::FileNode prFP16Node = fsSettings["PlaceRecognition.useFP16"];
+        if (!prFP16Node.empty())
+            prUseFP16 = (int)prFP16Node != 0;
+
+        auto pPlaceRecognition = std::make_shared<PlaceRecognition>(prModelPath, true, prUseFP16);
+        if (pPlaceRecognition->isLoaded()) {
+            mpTracker->mpPlaceRecognition = pPlaceRecognition;
+            mpLoopCloser->SetPlaceRecognition(pPlaceRecognition);
+        }
+    }
+
     mptLoopClosing = new thread(&ORB_SLAM3::LoopClosing::Run, mpLoopCloser);
 
     //Initialize the Viewer thread and launch

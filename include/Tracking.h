@@ -37,6 +37,7 @@
 #include "MapDrawer.h"
 #include "System.h"
 #include "ImuTypes.h"
+#include "PlaceRecognition.h"
 
 #include "GeometricCamera.h"
 
@@ -235,6 +236,9 @@ protected:
     //Other Thread Pointers
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopClosing;
+
+    // Place Recognition (NetVLAD/CosPlace)
+    std::shared_ptr<PlaceRecognition> mpPlaceRecognition;
 
     //ORB
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;
