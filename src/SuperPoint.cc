@@ -174,12 +174,8 @@ SPDetector::SPDetector(std::shared_ptr<SuperPoint> _model) : model(_model)
 
 void SPDetector::detect(cv::Mat &img, bool use_cuda)
 {
-    std::cout << "[DEBUG] SPDetector::detect() fonksiyonuna girildi" << std::endl;
-
     torch::Device device = (use_cuda && torch::cuda::is_available()) ? torch::kCUDA : torch::kCPU;
-    std::cout << "[INFO] Using device: " << (device.is_cuda() ? "CUDA" : "CPU") << std::endl;
 
-    // Görüntüyü Float32 + normalize (0-1) + contiguous hale getir
     auto x = torch::from_blob(img.data, {1, 1, img.rows, img.cols}, torch::kUInt8)
                  .to(torch::kFloat32)
                  .div(255.0)
@@ -341,16 +337,6 @@ void NMS2(std::vector<cv::KeyPoint> det, cv::Mat conf, std::vector<cv::KeyPoint>
             }
         }
     }
-    
-    // descriptors.create(select_indice.size(), 256, CV_32F);
-
-    // for (int i=0; i<select_indice.size(); i++)
-    // {
-    //     for (int j=0; j < 256; j++)
-    //     {
-    //         descriptors.at<float>(i, j) = desc.at<float>(select_indice[i], j);
-    //     }
-    // }
 }
 
 void NMS(cv::Mat det, cv::Mat conf, cv::Mat desc, std::vector<cv::KeyPoint>& pts, cv::Mat& descriptors,

@@ -73,9 +73,9 @@ int SPmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoints
 
         const cv::Mat MPdescriptor = pMP->GetDescriptor();
 
-        float bestDist=256;
+        float bestDist=2.0f;
         int bestLevel= -1;
-        float bestDist2=256;
+        float bestDist2=2.0f;
         int bestLevel2 = -1;
         int bestIdx =-1 ;
 
@@ -198,9 +198,9 @@ int SPmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoint
 
                 const cv::Mat &dKF= pKF->mDescriptors.row(realIdxKF);
 
-                float bestDist1=256;
+                float bestDist1=2.0f;
                 int bestIdxF =-1 ;
-                float bestDist2=256;
+                float bestDist2=2.0f;
 
                 for(size_t iF=0; iF<vIndicesF.size(); iF++)
                 {
@@ -367,7 +367,7 @@ int SPmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapPo
         // Match to the most similar keypoint in the radius
         const cv::Mat dMP = pMP->GetDescriptor();
 
-        float bestDist = 256;
+        float bestDist = 2.0f;
         int bestIdx = -1;
         for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
         {
@@ -569,9 +569,9 @@ int SPmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &v
 
                 const cv::Mat &d1 = Descriptors1.row(idx1);
 
-                float bestDist1=256;
+                float bestDist1=2.0f;
                 int bestIdx2 =-1 ;
-                float bestDist2=256;
+                float bestDist2=2.0f;
 
                 for(size_t i2=0, iend2=f2it->second.size(); i2<iend2; i2++)
                 {
@@ -904,7 +904,7 @@ int SPmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const 
 
         const cv::Mat dMP = pMP->GetDescriptor();
 
-        float bestDist = 256;
+        float bestDist = 2.0f;
         int bestIdx = -1;
         for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
         {
@@ -1400,7 +1400,7 @@ int SPmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, c
 
                 const cv::Mat dMP = pMP->GetDescriptor();
 
-                float bestDist = 256;
+                float bestDist = 2.0f;
                 int bestIdx2 = -1;
 
                 for(vector<size_t>::const_iterator vit=vIndices2.begin(), vend=vIndices2.end(); vit!=vend; vit++)
@@ -1538,7 +1538,7 @@ int SPmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set<
 
                 const cv::Mat dMP = pMP->GetDescriptor();
 
-                float bestDist = 256;
+                float bestDist = 2.0f;
                 int bestIdx2 = -1;
 
                 for(vector<size_t>::const_iterator vit=vIndices2.begin(); vit!=vIndices2.end(); vit++)
@@ -1646,27 +1646,6 @@ void SPmatcher::ComputeThreeMaxima(vector<int>* histo, const int L, int &ind1, i
         ind3=-1;
     }
 }
-
-
-// // Bit set count operation from
-// // http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
-// int SPmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)
-// {
-//     const int *pa = a.ptr<int32_t>();
-//     const int *pb = b.ptr<int32_t>();
-
-//     int dist=0;
-
-//     for(int i=0; i<8; i++, pa++, pb++)
-//     {
-//         unsigned  int v = *pa ^ *pb;
-//         v = v - ((v >> 1) & 0x55555555);
-//         v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
-//         dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
-//     }
-
-//     return dist;
-// }
 
 float SPmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)
 {

@@ -68,7 +68,6 @@ int main(int argc, char **argv)
 
         float fps = 1.0f / ttrack;
         cout << "FPS: " << fixed << setprecision(2) << fps << endl;
-        vTimesTrack.push_back(ttrack);
 
         // Pozisyon bilgisi terminale yazdır
         if (!Tcw.empty())

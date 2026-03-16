@@ -26,22 +26,23 @@ Camera.fps: 20.0
 Camera.RGB: 1
 
 #--------------------------------------------------------------------------------------------
-# ORB Parameters
+# SuperPoint / Feature Extractor Parameters
+# Note: YAML keys use "ORBextractor" prefix for backward compatibility with ORB-SLAM3 codebase
 #--------------------------------------------------------------------------------------------
 
-# ORB Extractor: Number of features per image
+# Number of features per image
 ORBextractor.nFeatures: 800
 
-# ORB Extractor: Scale factor between levels in the scale pyramid 	
+# Scale factor between levels in the scale pyramid
 ORBextractor.scaleFactor: 1.2
 
-# ORB Extractor: Number of levels in the scale pyramid	
+# Number of levels in the scale pyramid (1 = no pyramid, recommended for SuperPoint)
 ORBextractor.nLevels: 1
 
-# ORB Extractor: Fast threshold
-# Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
-# Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
-# You can lower these values if your images have low contrast			
+# SuperPoint confidence thresholds
+# Image is divided in a grid. At each cell, keypoints are extracted imposing a minimum confidence.
+# First iniThFAST is applied. If no keypoints are detected, minThFAST is used as fallback.
+# Lower these values if your images have low contrast or few features.
 ORBextractor.iniThFAST: 0.155
 ORBextractor.minThFAST: 0.055
 #--------------------------------------------------------------------------------------------
