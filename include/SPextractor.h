@@ -88,6 +88,7 @@ public:
     }
 
     std::vector<cv::Mat> mvImagePyramid;
+    bool mbUseFP16 = false;
 
 protected:
 

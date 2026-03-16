@@ -45,6 +45,14 @@ ORBextractor.nLevels: 1
 # Lower these values if your images have low contrast or few features.
 ORBextractor.iniThFAST: 0.155
 ORBextractor.minThFAST: 0.055
+
+# SuperPoint FP16 inference (0: disabled, 1: enabled - requires CUDA)
+SuperPoint.useFP16: 0
+
+# LightGlue learned matcher (optional - leave model_path empty to use brute-force L2)
+# Export with: python scripts/export_lightglue.py --output lightglue.pt
+# LightGlue.model_path: "lightglue.pt"
+# LightGlue.useFP16: 0
 #--------------------------------------------------------------------------------------------
 # Viewer Parameters
 #---------------------------------------------------------------------------------------------
