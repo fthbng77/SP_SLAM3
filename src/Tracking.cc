@@ -766,20 +766,32 @@ bool Tracking::ParseORBParamFile(cv::FileStorage &fSettings)
         return false;
     }
 
+    // Read FP16 option (optional, default: false)
+    bool bUseFP16 = false;
+    node = fSettings["SuperPoint.useFP16"];
+    if(!node.empty())
+        bUseFP16 = (int)node != 0;
+
     mpORBextractorLeft = new SPextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+    mpORBextractorLeft->mbUseFP16 = bUseFP16;
 
-    if(mSensor==System::STEREO || mSensor==System::IMU_STEREO)
+    if(mSensor==System::STEREO || mSensor==System::IMU_STEREO) {
         mpORBextractorRight = new SPextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+        mpORBextractorRight->mbUseFP16 = bUseFP16;
+    }
 
-    if(mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR)
+    if(mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR) {
         mpIniORBextractor = new SPextractor(5*nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+        mpIniORBextractor->mbUseFP16 = bUseFP16;
+    }
 
-    cout << endl << "ORB Extractor Parameters: " << endl;
+    cout << endl << "SuperPoint Extractor Parameters: " << endl;
     cout << "- Number of Features: " << nFeatures << endl;
     cout << "- Scale Levels: " << nLevels << endl;
     cout << "- Scale Factor: " << fScaleFactor << endl;
-    cout << "- Initial Fast Threshold: " << fIniThFAST << endl;
-    cout << "- Minimum Fast Threshold: " << fMinThFAST << endl;
+    cout << "- Confidence Threshold: " << fIniThFAST << endl;
+    cout << "- Min Confidence Threshold: " << fMinThFAST << endl;
+    cout << "- FP16 Inference: " << (bUseFP16 ? "ON" : "OFF") << endl;
 
     return true;
 }
