@@ -48,7 +48,7 @@ cv::Mat SPdetect(std::shared_ptr<SuperPoint> model, cv::Mat img, std::vector<cv:
 
 class SPDetector {
 public:
-    SPDetector(std::shared_ptr<SuperPoint> _model);
+    SPDetector(std::shared_ptr<SuperPoint> _model, bool use_fp16 = false);
     void detect(cv::Mat &image, bool cuda);
     void getKeyPoints(float threshold, int iniX, int maxX, int iniY, int maxY, std::vector<cv::KeyPoint> &keypoints, bool nms);
     void computeDescriptors(const std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors);
@@ -57,6 +57,7 @@ private:
     std::shared_ptr<SuperPoint> model;
     torch::Tensor mProb;
     torch::Tensor mDesc;
+    bool mbFP16;
 };
 
 }  // ORB_SLAM

@@ -27,7 +27,6 @@
 
 #include <torch/torch.h>
 #include "SuperPoint.h"
-#include <fstream>
 #ifdef EIGEN_MPL2_ONLY
 #undef EIGEN_MPL2_ONLY
 #endif
@@ -54,7 +53,6 @@ class SPextractor
 public:
     
     enum {HARRIS_SCORE=0, FAST_SCORE=1 };
-    int nthFrame = 1;
     SPextractor(int nfeatures, float scaleFactor, int nlevels,
                  float iniThFAST, float minThFAST);
 
@@ -90,6 +88,7 @@ public:
     }
 
     std::vector<cv::Mat> mvImagePyramid;
+    bool mbUseFP16 = false;
 
 protected:
 

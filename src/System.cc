@@ -20,6 +20,8 @@
 
 #include "System.h"
 #include "Converter.h"
+#include "SPmatcher.h"
+#include "LightGlue.h"
 #include <thread>
 #include <pangolin/pangolin.h>
 #include <iomanip>
@@ -105,6 +107,24 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     cout << "Seq. Name: " << strSequence << endl;
     mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
                              mpAtlas, mpKeyFrameDatabase, strSettingsFile, mSensor, strSequence);
+
+    // Load LightGlue model if specified in settings
+    cv::FileNode lgNode = fsSettings["LightGlue.model_path"];
+    if (!lgNode.empty())
+    {
+        string lgModelPath = (string)lgNode;
+        bool lgUseCuda = true;
+        bool lgUseFP16 = false;
+
+        cv::FileNode lgFP16Node = fsSettings["LightGlue.useFP16"];
+        if (!lgFP16Node.empty())
+            lgUseFP16 = (int)lgFP16Node != 0;
+
+        auto pLightGlue = std::make_shared<LightGlue>(lgModelPath, lgUseCuda, lgUseFP16);
+        if (pLightGlue->isLoaded())
+            SPmatcher::SetLightGlue(pLightGlue);
+    }
+
     //Initialize the Local Mapping thread and launch
     mpLocalMapper = new LocalMapping(this, mpAtlas, mSensor==MONOCULAR || mSensor==IMU_MONOCULAR, mSensor==IMU_MONOCULAR || mSensor==IMU_STEREO, strSequence);
     mptLocalMapping = new thread(&ORB_SLAM3::LocalMapping::Run,mpLocalMapper);
