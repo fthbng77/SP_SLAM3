@@ -21,8 +21,10 @@ echo "Configuring and building ORB_SLAM3 ..."
 
 mkdir build
 cd build
+TORCH_PATH="${TORCH_DIR:-/usr/local/libtorch/share/cmake/Torch}"
+
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
   -DUSE_CUDA=ON \
-  -DTorch_DIR="/home/fatih/libtorch/share/cmake/Torch"
+  -DTorch_DIR="$TORCH_PATH"
 make -j$(nproc)
