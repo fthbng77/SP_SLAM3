@@ -168,13 +168,15 @@ cv::Mat SPdetect(std::shared_ptr<SuperPoint> model, cv::Mat img, std::vector<cv:
 }
 
 
-SPDetector::SPDetector(std::shared_ptr<SuperPoint> _model) : model(_model) 
+SPDetector::SPDetector(std::shared_ptr<SuperPoint> _model, bool use_fp16)
+    : model(_model), mbFP16(use_fp16)
 {
 }
 
 void SPDetector::detect(cv::Mat &img, bool use_cuda)
 {
     torch::Device device = (use_cuda && torch::cuda::is_available()) ? torch::kCUDA : torch::kCPU;
+    bool fp16 = mbFP16 && device.is_cuda();
 
     auto x = torch::from_blob(img.data, {1, 1, img.rows, img.cols}, torch::kUInt8)
                  .to(torch::kFloat32)
@@ -182,16 +184,18 @@ void SPDetector::detect(cv::Mat &img, bool use_cuda)
                  .contiguous()
                  .to(device);
 
-    // Modeli doğru cihaza gönder ve eval moduna al
-    model->to(device);
+    if (fp16) {
+        model->to(torch::kFloat16);
+        x = x.to(torch::kFloat16);
+    } else {
+        model->to(torch::kFloat32);
+    }
     model->eval();
 
-    // Forward işlemi
     auto out = model->forward(x);
 
-    // Çıktılar: [prob, desc]
-    mProb = out[0].squeeze(0).to(torch::kCPU).contiguous();  // [H, W]
-    mDesc = out[1].to(device).contiguous();                  // [1, 256, H/8, W/8]
+    mProb = out[0].squeeze(0).to(torch::kFloat32).to(torch::kCPU).contiguous();
+    mDesc = out[1].to(torch::kFloat32).to(device).contiguous();
 }
 
 void SPDetector::getKeyPoints(float threshold, int iniX, int maxX, int iniY, int maxY, std::vector<cv::KeyPoint> &keypoints, bool nms)

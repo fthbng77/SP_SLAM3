@@ -23,6 +23,7 @@
 #define SPMATCHER_H
 
 #include<vector>
+#include<memory>
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
 
@@ -30,15 +31,20 @@
 #include"KeyFrame.h"
 #include"Frame.h"
 
-
 namespace ORB_SLAM3
 {
 
+class LightGlue;
+
 class SPmatcher
-{    
+{
 public:
 
     SPmatcher(float nnratio=0.6, bool checkOri=true);
+
+    // Set LightGlue matcher (shared across SPmatcher instances)
+    static void SetLightGlue(std::shared_ptr<LightGlue> pLG);
+    static std::shared_ptr<LightGlue> GetLightGlue();
 
     // Computes the Hamming distance between two SP descriptors
     static float DescriptorDistance(const cv::Mat &a, const cv::Mat &b);
@@ -99,6 +105,8 @@ protected:
 
     float mfNNratio;
     bool mbCheckOrientation;
+
+    static std::shared_ptr<LightGlue> mpLightGlue;
 };
 
 typedef SPmatcher ORBmatcher;  // alias for compatible

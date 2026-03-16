@@ -19,6 +19,7 @@
 */
 
 #include "SPmatcher.h"
+#include "LightGlue.h"
 
 #include<limits.h>
 
@@ -37,6 +38,11 @@ namespace ORB_SLAM3
 const float SPmatcher::TH_HIGH = 0.70;
 const float SPmatcher::TH_LOW = 0.30;
 const int SPmatcher::HISTO_LENGTH = 30;
+
+std::shared_ptr<LightGlue> SPmatcher::mpLightGlue = nullptr;
+
+void SPmatcher::SetLightGlue(std::shared_ptr<LightGlue> pLG) { mpLightGlue = pLG; }
+std::shared_ptr<LightGlue> SPmatcher::GetLightGlue() { return mpLightGlue; }
 
 SPmatcher::SPmatcher(float nnratio, bool checkOri): mfNNratio(nnratio), mbCheckOrientation(checkOri)
 {
@@ -407,11 +413,29 @@ int SPmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f>
     int nmatches=0;
     vnMatches12 = vector<int>(F1.mvKeysUn.size(),-1);
 
-    vector<int> rotHist[HISTO_LENGTH];
-    for(int i=0;i<HISTO_LENGTH;i++)
-        rotHist[i].reserve(500);
-    const float factor = 1.0f/HISTO_LENGTH;
+    // --- LightGlue path ---
+    if (mpLightGlue && mpLightGlue->isLoaded())
+    {
+        cv::Size imgSize(F1.mnMaxX - F1.mnMinX, F1.mnMaxY - F1.mnMinY);
+        auto lgMatches = mpLightGlue->match(
+            F1.mvKeysUn, F1.mDescriptors,
+            F2.mvKeysUn, F2.mDescriptors,
+            imgSize);
 
+        for (auto &m : lgMatches)
+        {
+            if (m.idx0 >= 0 && m.idx0 < (int)F1.mvKeysUn.size() &&
+                m.idx1 >= 0 && m.idx1 < (int)F2.mvKeysUn.size())
+            {
+                vnMatches12[m.idx0] = m.idx1;
+                vbPrevMatched[m.idx0] = F2.mvKeysUn[m.idx1].pt;
+                nmatches++;
+            }
+        }
+        return nmatches;
+    }
+
+    // --- Fallback: brute-force L2 matching ---
     vector<float> vMatchedDistance(F2.mvKeysUn.size(),INT_MAX);
     vector<int> vnMatches21(F2.mvKeysUn.size(),-1);
 
@@ -456,7 +480,6 @@ int SPmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f>
             }
         }
 
-        // cout << "bestdist: " << bestDist << " best2: " << bestDist2*mfNNratio << endl;
         if(bestDist<=TH_LOW)
         {
             if(bestDist <= (float)bestDist2*mfNNratio)
@@ -470,58 +493,15 @@ int SPmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f>
                 vnMatches21[bestIdx2]=i1;
                 vMatchedDistance[bestIdx2]=bestDist;
                 nmatches++;
-
-                if(false)
-                {
-                    float rot = F1.mvKeysUn[i1].angle-F2.mvKeysUn[bestIdx2].angle;
-                    if(rot<0.0)
-                        rot+=360.0f;
-                    int bin = round(rot*factor);
-                    if(bin==HISTO_LENGTH)
-                        bin=0;
-                    assert(bin>=0 && bin<HISTO_LENGTH);
-                    rotHist[bin].push_back(i1);
-                }
             }
         }
-
     }
 
-    if(false)
-    {
-        int ind1=-1;
-        int ind2=-1;
-        int ind3=-1;
-
-        ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
-
-        for(int i=0; i<HISTO_LENGTH; i++)
-        {
-            if(i==ind1 || i==ind2 || i==ind3)
-                continue;
-            for(size_t j=0, jend=rotHist[i].size(); j<jend; j++)
-            {
-                int idx1 = rotHist[i][j];
-                if(vnMatches12[idx1]>=0)
-                {
-                    vnMatches12[idx1]=-1;
-                    nmatches--;
-                }
-            }
-        }
-
-    }
-
-    //Update prev matched
+    // Update prev matched
     for(size_t i1=0, iend1=vnMatches12.size(); i1<iend1; i1++)
         if(vnMatches12[i1]>=0)
             vbPrevMatched[i1]=F2.mvKeysUn[vnMatches12[i1]].pt;
 
-    ofstream writeini;
-    writeini.open("matchesperframe.txt", ios::app);
-    writeini << nmatches << " ";
-    writeini.close();
-    cout << nmatches << ": 824matcher" << endl;
     return nmatches;
 }
 
@@ -662,11 +642,68 @@ int SPmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &v
 
 int SPmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F12,
                                        vector<pair<size_t, size_t> > &vMatchedPairs, const bool bOnlyStereo)
-{    
+{
+    int nmatches=0;
+    vector<int> vMatches12(pKF1->N,-1);
+
+    // --- LightGlue path ---
+    if (mpLightGlue && mpLightGlue->isLoaded())
+    {
+        // Collect unmatched keypoints with their original indices
+        vector<int> validIdx1, validIdx2;
+        vector<cv::KeyPoint> kpts1, kpts2;
+        cv::Mat desc1, desc2;
+
+        for (int i = 0; i < pKF1->N; i++) {
+            if (pKF1->GetMapPoint(i)) continue;
+            if (bOnlyStereo && pKF1->mvuRight[i] < 0) continue;
+            validIdx1.push_back(i);
+            kpts1.push_back(pKF1->mvKeysUn[i]);
+            desc1.push_back(pKF1->mDescriptors.row(i));
+        }
+        for (int i = 0; i < pKF2->N; i++) {
+            if (pKF2->GetMapPoint(i)) continue;
+            if (bOnlyStereo && pKF2->mvuRight[i] < 0) continue;
+            validIdx2.push_back(i);
+            kpts2.push_back(pKF2->mvKeysUn[i]);
+            desc2.push_back(pKF2->mDescriptors.row(i));
+        }
+
+        if (!kpts1.empty() && !kpts2.empty()) {
+            cv::Size imgSize(pKF1->mnMaxX - pKF1->mnMinX, pKF1->mnMaxY - pKF1->mnMinY);
+            auto lgMatches = mpLightGlue->match(kpts1, desc1, kpts2, desc2, imgSize);
+
+            for (auto &m : lgMatches) {
+                if (m.idx0 >= 0 && m.idx0 < (int)validIdx1.size() &&
+                    m.idx1 >= 0 && m.idx1 < (int)validIdx2.size())
+                {
+                    int realIdx1 = validIdx1[m.idx0];
+                    int realIdx2 = validIdx2[m.idx1];
+
+                    // Epipolar check
+                    if (CheckDistEpipolarLine(pKF1->mvKeysUn[realIdx1],
+                                              pKF2->mvKeysUn[realIdx2], F12, pKF2))
+                    {
+                        vMatches12[realIdx1] = realIdx2;
+                        nmatches++;
+                    }
+                }
+            }
+        }
+
+        vMatchedPairs.clear();
+        vMatchedPairs.reserve(nmatches);
+        for (size_t i = 0; i < vMatches12.size(); i++)
+            if (vMatches12[i] >= 0)
+                vMatchedPairs.push_back(make_pair(i, vMatches12[i]));
+
+        return nmatches;
+    }
+
+    // --- Fallback: BoW-constrained L2 matching ---
     const DBoW3::FeatureVector &vFeatVec1 = pKF1->mFeatVec;
     const DBoW3::FeatureVector &vFeatVec2 = pKF2->mFeatVec;
 
-    //Compute epipole in second image
     cv::Mat Cw = pKF1->GetCameraCenter();
     cv::Mat R2w = pKF2->GetRotation();
     cv::Mat t2w = pKF2->GetTranslation();
@@ -675,19 +712,7 @@ int SPmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F1
     const float ex =pKF2->fx*C2.at<float>(0)*invz+pKF2->cx;
     const float ey =pKF2->fy*C2.at<float>(1)*invz+pKF2->cy;
 
-    // Find matches between not tracked keypoints
-    // Matching speed-up by SP Vocabulary
-    // Compare only SP that share the same node
-
-    int nmatches=0;
     vector<bool> vbMatched2(pKF2->N,false);
-    vector<int> vMatches12(pKF1->N,-1);
-
-    vector<int> rotHist[HISTO_LENGTH];
-    for(int i=0;i<HISTO_LENGTH;i++)
-        rotHist[i].reserve(500);
-
-    const float factor = 1.0f/HISTO_LENGTH;
 
     DBoW3::FeatureVector::const_iterator f1it = vFeatVec1.begin();
     DBoW3::FeatureVector::const_iterator f2it = vFeatVec2.begin();
@@ -701,46 +726,38 @@ int SPmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F1
             for(size_t i1=0, iend1=f1it->second.size(); i1<iend1; i1++)
             {
                 const size_t idx1 = f1it->second[i1];
-                
+
                 MapPoint* pMP1 = pKF1->GetMapPoint(idx1);
-                
-                // If there is already a MapPoint skip
                 if(pMP1)
                     continue;
 
                 const bool bStereo1 = pKF1->mvuRight[idx1]>=0;
-
                 if(bOnlyStereo)
                     if(!bStereo1)
                         continue;
-                
+
                 const cv::KeyPoint &kp1 = pKF1->mvKeysUn[idx1];
-                
                 const cv::Mat &d1 = pKF1->mDescriptors.row(idx1);
-                
+
                 float bestDist = TH_LOW;
                 int bestIdx2 = -1;
-                
+
                 for(size_t i2=0, iend2=f2it->second.size(); i2<iend2; i2++)
                 {
                     size_t idx2 = f2it->second[i2];
-                    
-                    MapPoint* pMP2 = pKF2->GetMapPoint(idx2);
 
-                    // If we have already matched or there is a MapPoint skip
+                    MapPoint* pMP2 = pKF2->GetMapPoint(idx2);
                     if(vbMatched2[idx2] || pMP2)
                         continue;
 
                     const bool bStereo2 = pKF2->mvuRight[idx2]>=0;
-
                     if(bOnlyStereo)
                         if(!bStereo2)
                             continue;
-                    
+
                     const cv::Mat &d2 = pKF2->mDescriptors.row(idx2);
-                    
                     const float dist = DescriptorDistance(d1,d2);
-                    
+
                     if(dist>TH_LOW || dist>bestDist)
                         continue;
 
@@ -760,24 +777,11 @@ int SPmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F1
                         bestDist = dist;
                     }
                 }
-                
+
                 if(bestIdx2>=0)
                 {
-                    const cv::KeyPoint &kp2 = pKF2->mvKeysUn[bestIdx2];
                     vMatches12[idx1]=bestIdx2;
                     nmatches++;
-
-                    if(false)
-                    {
-                        float rot = kp1.angle-kp2.angle;
-                        if(rot<0.0)
-                            rot+=360.0f;
-                        int bin = round(rot*factor);
-                        if(bin==HISTO_LENGTH)
-                            bin=0;
-                        assert(bin>=0 && bin<HISTO_LENGTH);
-                        rotHist[bin].push_back(idx1);
-                    }
                 }
             }
 
@@ -792,27 +796,6 @@ int SPmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F1
         {
             f2it = vFeatVec2.lower_bound(f1it->first);
         }
-    }
-
-    if(false)
-    {
-        int ind1=-1;
-        int ind2=-1;
-        int ind3=-1;
-
-        ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
-
-        for(int i=0; i<HISTO_LENGTH; i++)
-        {
-            if(i==ind1 || i==ind2 || i==ind3)
-                continue;
-            for(size_t j=0, jend=rotHist[i].size(); j<jend; j++)
-            {
-                vMatches12[rotHist[i][j]]=-1;
-                nmatches--;
-            }
-        }
-
     }
 
     vMatchedPairs.clear();

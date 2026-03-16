@@ -75,6 +75,7 @@ add_library(${PROJECT_NAME} SHARED
         src/SPextractor.cc
         src/SPmatcher.cc
 	    src/SuperPoint.cc
+        src/LightGlue.cc
 
         src/FrameDrawer.cc
         src/Converter.cc
@@ -110,6 +111,7 @@ add_library(${PROJECT_NAME} SHARED
         include/SPmatcher.h
 	    include/SPVocabulary.h
 	    include/SuperPoint.h
+        include/LightGlue.h
 
         include/FrameDrawer.h
         include/Converter.h
