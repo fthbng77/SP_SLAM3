@@ -42,6 +42,11 @@ LoopClosing::LoopClosing(Atlas *pAtlas, KeyFrameDatabase *pDB, ORBVocabulary *pV
     mpLastCurrentKF = static_cast<KeyFrame*>(NULL);
 }
 
+void LoopClosing::SetPlaceRecognition(std::shared_ptr<PlaceRecognition> pPR)
+{
+    mpPlaceRecognition = pPR;
+}
+
 void LoopClosing::SetTracker(Tracking *pTracker)
 {
     mpTracker=pTracker;
@@ -454,13 +459,32 @@ bool LoopClosing::NewDetectCommonRegions()
     }*/
     //-------------
 
-    // Extract candidates from the bag of words
+    // Extract candidates from the bag of words (or learned place recognition)
     vector<KeyFrame*> vpMergeBowCand, vpLoopBowCand;
-    //cout << "LC: bMergeDetectedInKF: " << bMergeDetectedInKF << "   bLoopDetectedInKF: " << bLoopDetectedInKF << endl;
     if(!bMergeDetectedInKF || !bLoopDetectedInKF)
     {
-        // Search in BoW
-        mpKeyFrameDB->DetectNBestCandidates(mpCurrentKF, vpLoopBowCand, vpMergeBowCand,3);
+        if (mpPlaceRecognition && mpPlaceRecognition->isLoaded()
+            && mpCurrentKF->mGlobalDescriptor.numel() > 0)
+        {
+            // Learned place recognition path (NetVLAD/CosPlace)
+            std::set<KeyFrame*> spConnected = mpCurrentKF->GetConnectedKeyFrames();
+            auto vpCandidates = mpPlaceRecognition->query(
+                mpCurrentKF, mpCurrentKF->mGlobalDescriptor, 5, spConnected);
+
+            // Split candidates into loop and merge based on map membership
+            Map* pCurrentMap = mpCurrentKF->GetMap();
+            for (auto *pKF : vpCandidates) {
+                if (pKF->GetMap() == pCurrentMap)
+                    vpLoopBowCand.push_back(pKF);
+                else
+                    vpMergeBowCand.push_back(pKF);
+            }
+        }
+        else
+        {
+            // Fallback: BoW candidate detection
+            mpKeyFrameDB->DetectNBestCandidates(mpCurrentKF, vpLoopBowCand, vpMergeBowCand, 3);
+        }
     }
 
     // Check the BoW candidates if the geometric candidate list is empty

@@ -27,6 +27,7 @@
 #include "Tracking.h"
 
 #include "KeyFrameDatabase.h"
+#include "PlaceRecognition.h"
 
 #include <boost/algorithm/string.hpp>
 #include <thread>
@@ -52,6 +53,8 @@ public:
 public:
 
     LoopClosing(Atlas* pAtlas, KeyFrameDatabase* pDB, ORBVocabulary* pVoc,const bool bFixScale);
+
+    void SetPlaceRecognition(std::shared_ptr<PlaceRecognition> pPR);
 
     void SetTracker(Tracking* pTracker);
 
@@ -131,6 +134,8 @@ protected:
 
     KeyFrameDatabase* mpKeyFrameDB;
     ORBVocabulary* mpORBVocabulary;
+
+    std::shared_ptr<PlaceRecognition> mpPlaceRecognition;
 
     LocalMapping *mpLocalMapper;
 
