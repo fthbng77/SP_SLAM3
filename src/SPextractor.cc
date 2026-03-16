@@ -84,7 +84,9 @@ SPextractor::SPextractor(int _nfeatures, float _scaleFactor, int _nlevels,
     iniThFAST(_iniThFAST), minThFAST(_minThFAST)
 {
     model = make_shared<SuperPoint>();
-    torch::load(model, "superpoint.pt", torch::kCUDA);
+    torch::Device load_device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
+    torch::load(model, "superpoint.pt", load_device);
+    model->to(load_device);
 
     mvScaleFactor.resize(nlevels);
     mvLevelSigma2.resize(nlevels);
@@ -376,9 +378,6 @@ void SPextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoint
         const int wCell = ceil(width / nCols);
         const int hCell = ceil(height / nRows);
 
-        std::cout << "[INFO] SPextractor::operator(): GPU kullanılıyor mu? "
-                  << (torch::cuda::is_available() ? "EVET" : "HAYIR") << std::endl;
-
         for (int i = 0; i < nRows; i++)
         {
             const float iniY = minBorderY + i * hCell;
@@ -481,8 +480,6 @@ void SPextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoi
 
     vector < vector<KeyPoint> > allKeypoints;
     ComputeKeyPointsOctTree(allKeypoints, descriptors);
-    cout << "desc.rows: " << descriptors.rows << endl;
-
     int nkeypoints = descriptors.rows;
 
     if( nkeypoints == 0 )
@@ -492,10 +489,6 @@ void SPextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoi
         _descriptors.create(nkeypoints, 256, CV_32F);
         descriptors.copyTo(_descriptors.getMat());
     }
-    ofstream writefile;
-    writefile.open("mappointsperframe.txt", ios::app);
-    writefile << nkeypoints << " ";
-    writefile.close();
     _keypoints.clear();
     _keypoints.reserve(nkeypoints);
 
@@ -519,40 +512,7 @@ void SPextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoi
         // And add the keypoints to the output
         _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());
     }
-    nthFrame++;
 }
-
-// void SPextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
-//                       OutputArray _descriptors)
-// { 
-//     if(_image.empty())
-//         return;
-
-//     Mat image = _image.getMat();
-//     assert(image.type() == CV_8UC1 );
-
-//     vector<KeyPoint> keypoints;
-
-//     Mat desc = SPdetect(model, image, _keypoints, iniThFAST, true, false);
-
-//     // Mat kpt_mat(keypoints.size(), 2, CV_32F);
-//     // for (size_t i = 0; i < keypoints.size(); i++) {
-//     //     kpt_mat.at<float>(i, 0) = (float)keypoints[i].pt.x;
-//     //     kpt_mat.at<float>(i, 1) = (float)keypoints[i].pt.y;
-//     // }
-//     // Mat descriptors;
-//     // int border = 8;
-//     // int dist_thresh = 4;
-//     // int height = image.rows;
-//     // int width = image.cols;
-//     // nms(kpt_mat, desc, _keypoints, descriptors, border, dist_thresh, width, height);
-//     // cout << "hihihi" << endl;
-
-//     int nkeypoints = _keypoints.size();
-//     _descriptors.create(nkeypoints, 256, CV_32F);
-//     desc.copyTo(_descriptors.getMat());
-
-// }
 
 void SPextractor::ComputePyramid(cv::Mat image)
 {
