@@ -7,3 +7,15 @@ matchesperframe.txt
 CameraTrajectory.txt
 KeyFrameTrajectory.txt
 *.so
+
+# Build artifacts
+Thirdparty/DBoW3/build/
+Thirdparty/DBoW3/lib/
+Thirdparty/g2o/build/
+Thirdparty/g2o/lib/
+Examples/Monocular/mono_webcam
+Examples/Monocular/mono_live
+tools/convert_vocab
+
+# Uncompressed vocabulary (use .yml.gz instead)
+Vocabulary/superpoint_voc.yml
