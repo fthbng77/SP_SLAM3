@@ -1,8 +1,6 @@
 # SP-SLAM3
 
-**SuperPoint + ORB-SLAM3**: A visual SLAM system that replaces the handcrafted ORB feature extractor with the learned [SuperPoint](https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork) deep feature detector and descriptor.
-
-In the SP-SLAM3 pipeline, input images are converted to grayscale and fed into the SuperPoint detector pipeline (A). The SuperPoint encoder-decoder pipeline consists of a learned encoder, utilizing several convolutional layers, and two non-learned decoders for joint feature and descriptor extraction. The detected features are then processed by the ORB-SLAM3 backend, which comprises three primary components operating in parallel threads: the Tracking, Local Mapping, and Loop & Map Merging threads (B). The backend extracts keyframes, initializes and updates the map, and performs both local and global motion and pose estimation within the Local Mapping Thread and Loop & Map Merging thread. If a loop closure is detected, the pose estimation is further refined.
+**SuperPoint + ORB-SLAM3**: A visual SLAM system that replaces the handcrafted ORB feature extractor with learned deep learning components — [SuperPoint](https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork) for feature detection/description, [LightGlue](https://github.com/cvg/LightGlue) for learned feature matching, and [NetVLAD](https://arxiv.org/abs/1511.07247)/[CosPlace](https://github.com/gmberton/CosPlace) for place recognition.
 
 ![Pipeline Overview](imgs/img_1.jpg)
 ![Results](imgs/img_2.jpg)
@@ -11,26 +9,39 @@ In the SP-SLAM3 pipeline, input images are converted to grayscale and fed into t
 
 This repository was forked from [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3). The pre-trained SuperPoint model comes from the official [MagicLeap repository](https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork).
 
+---
+
 ## Key Changes from ORB-SLAM3
 
 | Component | ORB-SLAM3 | SP-SLAM3 |
 |-----------|-----------|----------|
 | Feature Extractor | ORB (handcrafted) | SuperPoint (learned, CNN-based) |
 | Descriptor | 256-bit binary (Hamming distance) | 256-dim float (L2 distance) |
-| Vocabulary | DBoW2 | DBoW3 with SuperPoint descriptors |
-| Matcher | ORBmatcher (Hamming) | SPmatcher (L2 norm) |
+| Feature Matcher | ORBmatcher (Hamming) | SPmatcher (L2 norm) + LightGlue (optional) |
+| Place Recognition | DBoW2 | DBoW3 + NetVLAD/CosPlace (optional) |
+| Inference Precision | N/A | FP32 / FP16 (CUDA) |
 
 ---
 
-# 1. Prerequisites
+## Features
+
+- **SuperPoint** — Learned CNN-based keypoint detector and descriptor extractor with 256-dim float descriptors, replacing handcrafted ORB features
+- **LightGlue** (optional) — Attention-based learned matcher for SuperPoint descriptors, used in monocular initialization and triangulation with automatic fallback to brute-force L2 matching
+- **NetVLAD / CosPlace** (optional) — Global descriptor-based loop closing using learned place recognition models, with automatic fallback to DBoW3
+- **FP16 Inference** — Half-precision inference support for SuperPoint, LightGlue, and PlaceRecognition on CUDA-capable GPUs
+- **GPU/CPU Fallback** — All neural network components gracefully fall back to CPU when CUDA is unavailable
+
+---
+
+## 1. Prerequisites
 
 Tested on **Ubuntu 20.04**.
 
-## C++17 Compiler
+### C++17 Compiler
 
 SP-SLAM3 uses C++17 thread and chrono functionalities.
 
-## OpenCV
+### OpenCV
 
 We use [OpenCV](http://opencv.org) to manipulate images and features. **Required at least 3.0. Tested with OpenCV 3.4.16**.
 
@@ -66,7 +77,7 @@ sudo make install
 sudo ldconfig
 ```
 
-## Eigen3
+### Eigen3
 
 Required by g2o. **Required at least 3.1.0. Tested with Eigen3 3.4.0**.
 
@@ -74,15 +85,15 @@ Required by g2o. **Required at least 3.1.0. Tested with Eigen3 3.4.0**.
 sudo apt install libeigen3-dev
 ```
 
-## DBoW3, Pangolin and g2o (Included in Thirdparty folder)
+### DBoW3, Pangolin and g2o (Included in Thirdparty folder)
 
 We use a BoW vocabulary based on the [DBoW3](https://github.com/rmsalinas/DBow3) library to perform place recognition, and [g2o](https://github.com/RainerKuemmerle/g2o) library is used to perform non-linear optimizations. All these libraries are included in the *Thirdparty* folder.
 
-### Vocabulary
+#### Vocabulary
 
 The SuperPoint vocabulary file (`Vocabulary/superpoint_voc.yml.gz`) is included in this repository. For more information please refer to [this repo](https://github.com/Kasper-Borzdynski/Ms-Deep_SLAM.git).
 
-## NVIDIA Driver & CUDA Toolkit 12.2 with cuDNN 8.9.1
+### NVIDIA Driver & CUDA Toolkit 12.2 with cuDNN 8.9.1
 
 Follow these [instructions](https://developer.nvidia.com/cuda-12.2-download-archive) for the installation of CUDA Toolkit 12.2.
 
@@ -107,7 +118,7 @@ Verify NVIDIA driver availability:
 nvidia-smi
 ```
 
-## LibTorch 2.1.0 (with GPU | CUDA 12.1)
+### LibTorch 2.1.0 (with GPU | CUDA 12.1)
 
 If only CPU is available, install the CPU version of LibTorch. The system will automatically fall back to CPU mode.
 
@@ -124,7 +135,7 @@ export TORCH_DIR=/usr/local/libtorch/share/cmake/Torch
 
 ---
 
-# 2. Building SP-SLAM3
+## 2. Building SP-SLAM3
 
 Clone the repository:
 
@@ -148,7 +159,32 @@ TORCH_DIR=/path/to/libtorch/share/cmake/Torch ./build.sh
 
 ---
 
-# 3. Running (Monocular)
+## 3. Optional Model Export
+
+SP-SLAM3 supports optional learned models for matching and place recognition. These are **not required** — the system falls back to brute-force L2 matching and DBoW3 when models are not provided.
+
+### LightGlue (Learned Matcher)
+
+```bash
+pip install lightglue
+python scripts/export_lightglue.py --output lightglue.pt
+```
+
+### CosPlace / NetVLAD (Place Recognition)
+
+```bash
+# CosPlace (recommended — ResNet18 backbone, 512-dim descriptor)
+pip install torch torchvision
+python scripts/export_place_recognition.py --model cosplace --output cosplace.pt
+
+# NetVLAD (4096-dim descriptor, requires hloc)
+pip install hloc
+python scripts/export_place_recognition.py --model netvlad --output netvlad.pt
+```
+
+---
+
+## 4. Running (Monocular)
 
 ```bash
 cd SP_SLAM3
@@ -165,73 +201,127 @@ export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
 
 Edit `Examples/Monocular/EuRoC.yaml` to adjust parameters:
 
+#### SuperPoint Parameters
+
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `ORBextractor.nFeatures` | Number of features per image | 800 |
 | `ORBextractor.nLevels` | Scale pyramid levels (1 = no pyramid, recommended) | 1 |
 | `ORBextractor.iniThFAST` | SuperPoint confidence threshold | 0.155 |
 | `ORBextractor.minThFAST` | Fallback threshold (if too few features detected) | 0.055 |
+| `SuperPoint.useFP16` | Enable FP16 inference on CUDA (0/1) | 0 |
 
 > **Note:** Parameter names use `ORBextractor` prefix for backward compatibility with ORB-SLAM3.
 
----
+#### LightGlue Parameters (Optional)
 
-# 4. Architecture
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `LightGlue.model_path` | Path to exported TorchScript model | (disabled) |
+| `LightGlue.useFP16` | Enable FP16 inference on CUDA (0/1) | 0 |
 
+#### Place Recognition Parameters (Optional)
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `PlaceRecognition.model_path` | Path to exported TorchScript model | (disabled) |
+| `PlaceRecognition.useFP16` | Enable FP16 inference on CUDA (0/1) | 0 |
+
+**Example configuration with all features enabled:**
+
+```yaml
+# SuperPoint
+ORBextractor.nFeatures: 800
+ORBextractor.nLevels: 1
+ORBextractor.iniThFAST: 0.155
+ORBextractor.minThFAST: 0.055
+SuperPoint.useFP16: 1
+
+# LightGlue
+LightGlue.model_path: "lightglue.pt"
+LightGlue.useFP16: 1
+
+# Place Recognition
+PlaceRecognition.model_path: "cosplace.pt"
+PlaceRecognition.useFP16: 1
 ```
-Input Image (Grayscale)
-       │
-       ▼
-┌──────────────┐
-│  SuperPoint   │  ── CNN encoder + dual decoder
-│  (LibTorch)   │     → Keypoints + 256-dim float descriptors
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│  SPextractor  │  ── OctTree distribution + NMS
-└──────┬───────┘
-       │
-       ▼
-┌──────────────────────────────────────────┐
-│           ORB-SLAM3 Backend              │
-│                                          │
-│  Tracking ─── Local Mapping ─── Loop     │
-│  Thread       Thread            Closing  │
-│                                 Thread   │
-└──────────────────────────────────────────┘
+
+---
+
+## 5. Architecture
+
+```mermaid
+graph TD
+    A["Input Image<br/>(Grayscale)"] --> B["<b>SuperPoint</b><br/>CNN Encoder + Dual Decoder<br/><i>FP32 / FP16</i>"]
+
+    B --> K["Keypoints"]
+    B --> D["256-dim Float<br/>Descriptors"]
+
+    K --> M{Feature Matching}
+    D --> M
+
+    M -- "default" --> SP["<b>SPmatcher</b><br/>Brute-force L2"]
+    M -- "optional" --> LG["<b>LightGlue</b><br/>Attention-based<br/>Learned Matcher"]
+
+    SP --> T
+    LG --> T
+
+    subgraph SLAM ["ORB-SLAM3 Backend"]
+        T["<b>Tracking</b><br/>Frame Processing<br/>Pose Estimation"]
+        LM["<b>Local Mapping</b><br/>Keyframe Processing<br/>Map Point Creation"]
+        LC["<b>Loop Closing</b><br/>Loop Detection<br/>Pose Graph Optimization"]
+
+        T --> LM --> LC
+    end
+
+    A --> PR{Place Recognition}
+    PR -- "default" --> DB["<b>DBoW3</b><br/>BoW Vocabulary"]
+    PR -- "optional" --> NV["<b>NetVLAD / CosPlace</b><br/>Global Descriptor"]
+    DB --> LC
+    NV --> LC
+
+    style B fill:#2d6a4f,color:#fff
+    style LG fill:#1b4332,color:#fff
+    style NV fill:#1b4332,color:#fff
+    style SP fill:#40916c,color:#fff
+    style DB fill:#40916c,color:#fff
+    style SLAM fill:#f0f0f0,stroke:#333,color:#000
+    style T fill:#264653,color:#fff
+    style LM fill:#264653,color:#fff
+    style LC fill:#264653,color:#fff
 ```
 
 ---
 
-# 5. Roadmap
+## 6. Roadmap
 
-### Phase 2 — Matching Improvement
+### Matching Improvement
 
-- [ ] **LightGlue integration** — Replace brute-force L2 matching with [LightGlue](https://github.com/cvg/LightGlue), an attention-based learned matcher designed for SuperPoint descriptors. Priority targets:
-  - `SearchForInitialization` — Monocular initialization (most critical, determines map quality)
-  - `SearchForTriangulation` — New map point creation
-  - `SearchByProjection` — Can be used as fallback for difficult scenes
-- [ ] **Matching threshold calibration** — Current `TH_HIGH=0.70` and `TH_LOW=0.30` were adapted from ORB's Hamming thresholds. These need empirical optimization on benchmark datasets for L2 descriptor matching.
+- [x] **LightGlue integration** — Attention-based learned matcher for `SearchForInitialization` and `SearchForTriangulation`
+- [ ] **Extend LightGlue** — Apply to `SearchByProjection` for difficult scenes
+- [ ] **Matching threshold calibration** — Optimize `TH_HIGH` / `TH_LOW` on benchmark datasets for L2 descriptor matching
 
-### Phase 3 — Place Recognition Improvement
+### Place Recognition
 
-- [ ] **NetVLAD / learned place recognition** — DBoW3 is designed for binary descriptors and is suboptimal for float descriptors. Replacing it with [NetVLAD](https://arxiv.org/abs/1511.07247) or [CosPlace](https://github.com/gmberton/CosPlace) for loop closing and relocalization would significantly improve robustness.
-- [ ] **SuperPoint vocabulary regeneration** — Evaluate the current vocabulary quality and size. Retrain with a larger and more diverse dataset if needed.
+- [x] **NetVLAD / CosPlace** — Global descriptor-based loop closing replacing DBoW3
+- [ ] **SuperPoint vocabulary regeneration** — Retrain vocabulary with a larger and more diverse dataset
 
-### Phase 4 — Performance Optimization
+### Performance Optimization
 
-- [ ] **TensorRT / ONNX Runtime** — Replace LibTorch inference with TensorRT for 2-3x speedup on NVIDIA GPUs, or ONNX Runtime for cross-platform acceleration.
-- [ ] **Remove image pyramid** — SuperPoint is inherently scale-invariant. The current pyramid code (`nLevels=1` workaround) can be fully removed to eliminate overhead.
-- [ ] **Half precision (FP16) inference** — Run SuperPoint in FP16 mode for faster inference with minimal accuracy loss.
+- [x] **Half precision (FP16) inference** — FP16 mode for SuperPoint, LightGlue, and PlaceRecognition on CUDA
+- [ ] **TensorRT / ONNX Runtime** — Replace LibTorch with TensorRT for 2-3x speedup on NVIDIA GPUs
+- [ ] **Remove image pyramid** — Fully remove pyramid code (currently using `nLevels=1` workaround)
 
 ---
 
-# 6. License
+## 7. License
 
 SP-SLAM3 is released under the [GPLv3 license](https://www.gnu.org/licenses/gpl-3.0.html), same as ORB-SLAM3.
 
-# 7. References
+## 8. References
 
 - [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3) - C. Campos, R. Elvira, J. J. G. Rodriguez, J. M. M. Montiel and J. D. Tardos
 - [SuperPoint](https://arxiv.org/abs/1712.07629) - D. DeTone, T. Malisiewicz and A. Rabinovich (MagicLeap)
+- [LightGlue](https://arxiv.org/abs/2306.13643) - P. Lindenberger, P.-E. Sarlin and M. Pollefeys
+- [NetVLAD](https://arxiv.org/abs/1511.07247) - R. Arandjelovic, P. Gronat, A. Torii, T. Pajdla and J. Sivic
+- [CosPlace](https://arxiv.org/abs/2204.02287) - G. Berton, C. Masone and B. Caputo
