@@ -26,16 +26,12 @@
 #define CV_REDUCE_SUM cv::REDUCE_SUM
 #endif
 
-// OpenCV 4 removed the C API (CvMat, cvSVD, cvCreateMat, etc.)
-// Include legacy C headers if available
+// OpenCV 4 C API support (CvMat, cvSVD, cvCreateMat, etc.)
 #if __has_include(<opencv2/core/core_c.h>)
 #include <opencv2/core/core_c.h>
 #endif
 #if __has_include(<opencv2/core/types_c.h>)
 #include <opencv2/core/types_c.h>
-#endif
-#if __has_include(<opencv2/imgproc/imgproc_c.h>)
-#include <opencv2/imgproc/imgproc_c.h>
 #endif
 
 #endif // OPENCV_COMPAT_H
