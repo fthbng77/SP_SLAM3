@@ -48,6 +48,7 @@
 #include <iostream>
 
 #include "PnPsolver.h"
+#include "OpenCVCompat.h"
 
 #include <vector>
 #include <cmath>

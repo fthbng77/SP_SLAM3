@@ -22,11 +22,20 @@
 #ifndef CV_LOAD_IMAGE_UNCHANGED
 #define CV_LOAD_IMAGE_UNCHANGED cv::IMREAD_UNCHANGED
 #endif
+#ifndef CV_REDUCE_SUM
+#define CV_REDUCE_SUM cv::REDUCE_SUM
+#endif
 
-// OpenCV 4 removed the C API (CvMat, etc.)
-// Include legacy header if available
+// OpenCV 4 removed the C API (CvMat, cvSVD, cvCreateMat, etc.)
+// Include legacy C headers if available
+#if __has_include(<opencv2/core/core_c.h>)
+#include <opencv2/core/core_c.h>
+#endif
 #if __has_include(<opencv2/core/types_c.h>)
 #include <opencv2/core/types_c.h>
+#endif
+#if __has_include(<opencv2/imgproc/imgproc_c.h>)
+#include <opencv2/imgproc/imgproc_c.h>
 #endif
 
 #endif // OPENCV_COMPAT_H
