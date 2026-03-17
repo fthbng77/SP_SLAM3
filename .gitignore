@@ -15,6 +15,7 @@ Thirdparty/g2o/build/
 Thirdparty/g2o/lib/
 Examples/Monocular/mono_webcam
 Examples/Monocular/mono_live
+Examples/Monocular/mono_euroc
 tools/convert_vocab
 
 # Dataset folders
