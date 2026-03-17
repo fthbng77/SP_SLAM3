@@ -210,7 +210,6 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     std::chrono::steady_clock::time_point time_StartExtORB = std::chrono::steady_clock::now();
 #endif
     ExtractORB(0,imGray,0,0);
-    cout << "mvKeys.size(): " << mvKeys.size() << endl;
 #ifdef SAVE_TIMES
     std::chrono::steady_clock::time_point time_EndExtORB = std::chrono::steady_clock::now();
 
@@ -294,7 +293,6 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     std::chrono::steady_clock::time_point time_StartExtORB = std::chrono::steady_clock::now();
 #endif
     ExtractORB(0,imGray,0,1000);
-    cout << "mvKeys.size(): " << mvKeys.size() << endl;
 #ifdef SAVE_TIMES
     std::chrono::steady_clock::time_point time_EndExtORB = std::chrono::steady_clock::now();
 
@@ -408,7 +406,6 @@ void Frame::ExtractORB(int flag, const cv::Mat &im, const int x0, const int x1)
     vector<int> vLapping = {x0,x1};
     if(flag==0){
         (*mpORBextractorLeft)(im,cv::Mat(),mvKeys,mDescriptors);
-        cout << "desc size: " << mDescriptors.rows << ' ' << mDescriptors.cols << endl;
     }
     else
         (*mpORBextractorRight)(im,cv::Mat(),mvKeysRight,mDescriptorsRight);
