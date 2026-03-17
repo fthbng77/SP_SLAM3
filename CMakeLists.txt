@@ -166,4 +166,10 @@ add_executable(mono_live
         Examples/Monocular/mono_live.cc)
 target_link_libraries(mono_live ${PROJECT_NAME})
 
+# Tools
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/tools)
 
+add_executable(convert_vocab tools/convert_vocab.cc)
+target_link_libraries(convert_vocab
+        ${OpenCV_LIBS}
+        ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW3/lib/libDBoW3.so)
