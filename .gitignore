@@ -20,5 +20,6 @@ tools/convert_vocab
 # Dataset folders
 Examples/Monocular/MH_01_easy
 
-# Uncompressed vocabulary (use .yml.gz instead)
+# Vocabulary files (generate locally with convert_vocab)
 Vocabulary/superpoint_voc.yml
+Vocabulary/superpoint_voc.dbow3
