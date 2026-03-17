@@ -17,5 +17,8 @@ Examples/Monocular/mono_webcam
 Examples/Monocular/mono_live
 tools/convert_vocab
 
+# Dataset folders
+Examples/Monocular/MH_01_easy
+
 # Uncompressed vocabulary (use .yml.gz instead)
 Vocabulary/superpoint_voc.yml
