@@ -166,6 +166,10 @@ add_executable(mono_live
         Examples/Monocular/mono_live.cc)
 target_link_libraries(mono_live ${PROJECT_NAME})
 
+add_executable(mono_euroc
+        Examples/Monocular/mono_euroc.cc)
+target_link_libraries(mono_euroc ${PROJECT_NAME})
+
 # Tools
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/tools)
 
