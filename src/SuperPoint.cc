@@ -184,8 +184,10 @@ void SPDetector::detect(cv::Mat &img, bool use_cuda)
                  .contiguous()
                  .to(device);
 
-    if (mbFP16 && device.is_cuda())
+    if (mbFP16 && device.is_cuda()) {
+        model->to(torch::kFloat16);
         x = x.to(torch::kFloat16);
+    }
 
     auto out = model->forward(x);
 
