@@ -18,6 +18,7 @@
 
 #include "FrameDrawer.h"
 #include "Tracking.h"
+#include "OpenCVCompat.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
