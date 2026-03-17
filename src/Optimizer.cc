@@ -18,7 +18,7 @@
 
 
 #include "Optimizer.h"
-
+#include "OpenCVCompat.h"
 
 #include <complex>
 

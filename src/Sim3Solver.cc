@@ -18,6 +18,7 @@
 
 
 #include "Sim3Solver.h"
+#include "OpenCVCompat.h"
 
 #include <vector>
 #include <cmath>
