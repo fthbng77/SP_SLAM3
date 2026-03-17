@@ -1079,7 +1079,6 @@ void LocalMapping::KeyFrameCulling()
             }
         }
     }
-    cout << "removed kf: " << countframes << endl;
 }
 
 
