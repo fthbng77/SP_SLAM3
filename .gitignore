@@ -6,3 +6,4 @@ mappointsperframe.txt
 matchesperframe.txt
 CameraTrajectory.txt
 KeyFrameTrajectory.txt
+*.so
