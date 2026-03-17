@@ -43,11 +43,18 @@ SP-SLAM3 uses C++17 thread and chrono functionalities.
 
 ### OpenCV
 
-We use [OpenCV](http://opencv.org) to manipulate images and features. **Required at least 3.0. Tested with OpenCV 3.4.16**.
+We use [OpenCV](http://opencv.org) to manipulate images and features. **Supports OpenCV 3.x and 4.x. Tested with OpenCV 4.2.0 and 4.10.0**.
+
+Option A — Install from apt (recommended):
+
+```bash
+sudo apt-get install libopencv-dev
+```
+
+Option B — Build from source:
 
 ```bash
 sudo apt-get update
-
 sudo apt-get install build-essential cmake git pkg-config libgtk-3-dev \
     libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
     libxvidcore-dev libx264-dev libjpeg-dev libpng-dev libtiff-dev \
@@ -56,13 +63,11 @@ sudo apt-get install build-essential cmake git pkg-config libgtk-3-dev \
 
 cd ~
 git clone https://github.com/opencv/opencv.git
-cd opencv
-git checkout 3.4.16
+cd opencv && git checkout 4.10.0
 
 cd ~
 git clone https://github.com/opencv/opencv_contrib.git
-cd opencv_contrib
-git checkout 3.4.16
+cd opencv_contrib && git checkout 4.10.0
 
 cd ~/opencv
 mkdir build && cd build
@@ -118,12 +123,13 @@ Verify NVIDIA driver availability:
 nvidia-smi
 ```
 
-### LibTorch 2.1.0 (with GPU | CUDA 12.1)
+### LibTorch (with GPU | CUDA 12.1+)
 
 If only CPU is available, install the CPU version of LibTorch. The system will automatically fall back to CPU mode.
 
 ```bash
-wget https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu121.zip -O libtorch.zip
+# LibTorch 2.3.0 for CUDA 12.1/12.2
+wget https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.3.0%2Bcu121.zip -O libtorch.zip
 sudo unzip libtorch.zip -d /usr/local
 ```
 
@@ -155,6 +161,16 @@ If LibTorch is installed in a custom path:
 
 ```bash
 TORCH_DIR=/path/to/libtorch/share/cmake/Torch ./build.sh
+```
+
+If you have multiple OpenCV versions installed, specify the correct one:
+
+```bash
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release \
+  -DTorch_DIR=/usr/local/libtorch/share/cmake/Torch \
+  -DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4
+make -j$(nproc)
 ```
 
 ---
