@@ -1917,7 +1917,6 @@ void Tracking::Track()
         }
 
     }
-    cout << endl <<"framecount is: " << framecount << endl;
 }
 
 
@@ -2095,10 +2094,8 @@ void Tracking::MonocularInitialization()
         cv::Mat Rcw; // Current Camera Rotation
         cv::Mat tcw; // Current Camera Translation
         vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
-        cout << "start to intialize..." << endl;
         if(mpCamera->ReconstructWithTwoViews(mInitialFrame.mvKeysUn,mCurrentFrame.mvKeysUn,mvIniMatches,Rcw,tcw,mvIniP3D,vbTriangulated))
         {
-            cout << "intializing..." << endl;
 
             for(size_t i=0, iend=mvIniMatches.size(); i<iend;i++)
             {
@@ -2640,7 +2637,6 @@ bool Tracking::TrackLocalMap()
     write.open("matchesperframe.txt", ios::app);
     write << mnMatchesInliers << " ";
     write.close();
-    cout << mnMatchesInliers << ":mnInliers" << endl;
 
     if (mSensor == System::IMU_MONOCULAR)
     {
@@ -3015,7 +3011,6 @@ void Tracking::SearchLocalPoints()
             th=15; // 15
 
         int matches = matcher.SearchByProjection(mCurrentFrame, mvpLocalMapPoints, th);
-        cout << "2991tracking project: " << matches << endl;
     }
 }
 

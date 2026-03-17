@@ -68,19 +68,12 @@ int main(int argc, char **argv)
 
         float ttrack = chrono::duration_cast<chrono::duration<float>>(t2 - t1).count();
         float fps = 1.0f / ttrack;
-        cout << "FPS: " << fixed << setprecision(2) << fps << endl;
         vTimesTrack.push_back(ttrack);
 
         if (!Tcw_cv.empty())
         {
             Sophus::SE3f Tcw = cvMatToSophus(Tcw_cv);
             Eigen::Vector3f trans = Tcw.translation();
-
-            cout << fixed << setprecision(6);
-            cout << "Frame " << frame_id << " | Pozisyon [x y z]: "
-                 << trans.x() << " "
-                 << trans.y() << " "
-                 << trans.z() << endl;
         }
 
         cv::imshow("ORB-SLAM3 Live", frame);
