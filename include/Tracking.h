@@ -103,6 +103,9 @@ public:
     int GetMatchesInliers();
 public:
 
+    // Place Recognition (NetVLAD/CosPlace)
+    std::shared_ptr<PlaceRecognition> mpPlaceRecognition;
+
     // Tracking states
     enum eTrackingState{
         SYSTEM_NOT_READY=-1,
@@ -236,9 +239,6 @@ protected:
     //Other Thread Pointers
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopClosing;
-
-    // Place Recognition (NetVLAD/CosPlace)
-    std::shared_ptr<PlaceRecognition> mpPlaceRecognition;
 
     //ORB
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;

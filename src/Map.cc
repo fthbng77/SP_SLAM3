@@ -18,6 +18,7 @@
 
 
 #include "Map.h"
+#include "OpenCVCompat.h"
 
 #include<mutex>
 
