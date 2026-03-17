@@ -175,8 +175,8 @@ SPDetector::SPDetector(std::shared_ptr<SuperPoint> _model, bool use_fp16)
 
 void SPDetector::detect(cv::Mat &img, bool use_cuda)
 {
+    torch::NoGradGuard no_grad;
     torch::Device device = (use_cuda && torch::cuda::is_available()) ? torch::kCUDA : torch::kCPU;
-    bool fp16 = mbFP16 && device.is_cuda();
 
     auto x = torch::from_blob(img.data, {1, 1, img.rows, img.cols}, torch::kUInt8)
                  .to(torch::kFloat32)
@@ -184,13 +184,8 @@ void SPDetector::detect(cv::Mat &img, bool use_cuda)
                  .contiguous()
                  .to(device);
 
-    if (fp16) {
-        model->to(torch::kFloat16);
+    if (mbFP16 && device.is_cuda())
         x = x.to(torch::kFloat16);
-    } else {
-        model->to(torch::kFloat32);
-    }
-    model->eval();
 
     auto out = model->forward(x);
 

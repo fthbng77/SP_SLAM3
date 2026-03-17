@@ -87,6 +87,7 @@ SPextractor::SPextractor(int _nfeatures, float _scaleFactor, int _nlevels,
     torch::Device load_device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
     torch::load(model, "superpoint.pt", load_device);
     model->to(load_device);
+    model->eval();
 
     mvScaleFactor.resize(nlevels);
     mvLevelSigma2.resize(nlevels);

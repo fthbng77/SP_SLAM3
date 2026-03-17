@@ -47,7 +47,7 @@ ORBextractor.iniThFAST: 0.155
 ORBextractor.minThFAST: 0.055
 
 # SuperPoint FP16 inference (0: disabled, 1: enabled - requires CUDA)
-SuperPoint.useFP16: 0
+SuperPoint.useFP16: 1
 
 # LightGlue learned matcher (optional - leave model_path empty to use brute-force L2)
 # Export with: python scripts/export_lightglue.py --output lightglue.pt
