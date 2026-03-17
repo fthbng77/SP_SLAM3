@@ -1,0 +1,8 @@
+build/
+lib/
+*.pyc
+__pycache__/
+mappointsperframe.txt
+matchesperframe.txt
+CameraTrajectory.txt
+KeyFrameTrajectory.txt
