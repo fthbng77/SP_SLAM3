@@ -374,6 +374,34 @@ graph TD
 
 Ground truth trajectories for EuRoC sequences are included in `evaluation/Ground_truth/EuRoC_left_cam/`.
 
+### Benchmark: SP-SLAM3 vs ORB-SLAM3
+
+Absolute Trajectory Error (ATE RMSE) on the [EuRoC MAV dataset](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) (monocular, Sim(3) aligned):
+
+| Sequence | SP-SLAM3 | ORB-SLAM3 | Improvement |
+|----------|----------|-----------|-------------|
+| MH_01_easy | **0.0131 m** | 0.0241 m | 1.84x |
+
+<details>
+<summary>Detailed MH01_easy results</summary>
+
+| Metric | SP-SLAM3 | ORB-SLAM3 |
+|--------|----------|-----------|
+| ATE RMSE | **0.0131 m** | 0.0241 m |
+| ATE Mean | **0.0103 m** | 0.0225 m |
+| ATE Median | **0.0086 m** | 0.0216 m |
+| ATE Std | **0.0081 m** | 0.0087 m |
+| ATE Max | **0.0419 m** | 0.0617 m |
+| Tracked Frames | 3333 | **3681** |
+| Keyframes | **419** | 400 |
+| KF ATE RMSE | **0.0161 m** | 0.0231 m |
+
+**SP-SLAM3 config:** 800 features, nLevels=1, FP16 enabled, brute-force L2 matching, DBoW3 (no LightGlue, no learned place recognition)
+
+**ORB-SLAM3 config:** 1000 features, nLevels=8, ORB + Hamming matching, DBoW2
+
+</details>
+
 ### Using evo
 
 Install the [evo](https://github.com/MichaelGrupp/evo) evaluation tool:
@@ -386,10 +414,10 @@ Evaluate trajectory accuracy after running a sequence:
 
 ```bash
 # Absolute Trajectory Error (ATE)
-evo_ape tum evaluation/Ground_truth/EuRoC_left_cam/MH01_GT.txt CameraTrajectory.txt -a -p --plot
+evo_ape tum evaluation/Ground_truth/EuRoC_left_cam/MH01_GT.txt CameraTrajectory.txt -as
 
 # Relative Pose Error (RPE)
-evo_rpe tum evaluation/Ground_truth/EuRoC_left_cam/MH01_GT.txt CameraTrajectory.txt -a -p --plot
+evo_rpe tum evaluation/Ground_truth/EuRoC_left_cam/MH01_GT.txt CameraTrajectory.txt -as
 
 # Compare multiple results
 evo_res results/*.zip -p --plot
