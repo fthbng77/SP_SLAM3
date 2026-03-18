@@ -90,13 +90,43 @@ Required by g2o. **Required at least 3.1.0. Tested with Eigen3 3.4.0**.
 sudo apt install libeigen3-dev
 ```
 
+### Pangolin
+
+Required for 3D visualization. **Tested with Pangolin 0.6+**.
+
+```bash
+# Install dependencies
+sudo apt install libgl1-mesa-dev libglew-dev libpython3-dev
+
+# Build from source
+cd ~
+git clone --recursive https://github.com/stevenlovegrove/Pangolin.git
+cd Pangolin
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+```
+
+### Boost & OpenSSL
+
+```bash
+sudo apt install libboost-serialization-dev libssl-dev
+```
+
 ### DBoW3, Pangolin and g2o (Included in Thirdparty folder)
 
 We use a BoW vocabulary based on the [DBoW3](https://github.com/rmsalinas/DBow3) library to perform place recognition, and [g2o](https://github.com/RainerKuemmerle/g2o) library is used to perform non-linear optimizations. All these libraries are included in the *Thirdparty* folder.
 
 #### Vocabulary
 
-The SuperPoint vocabulary file (`Vocabulary/superpoint_voc.yml.gz`) is included in this repository. For more information please refer to [this repo](https://github.com/Kasper-Borzdynski/Ms-Deep_SLAM.git).
+The SuperPoint vocabulary files are included in this repository in multiple formats: `Vocabulary/superpoint_voc.dbow3` (binary, fast loading), `Vocabulary/superpoint_voc.yml.gz` (compressed YAML). For more information please refer to [this repo](https://github.com/Kasper-Borzdynski/Ms-Deep_SLAM.git).
+
+You can convert between formats using:
+
+```bash
+./tools/convert_vocab Vocabulary/superpoint_voc.yml.gz Vocabulary/superpoint_voc.dbow3
+```
 
 ### NVIDIA Driver & CUDA Toolkit 12.2 with cuDNN 8.9.1
 
@@ -205,13 +235,44 @@ python scripts/export_place_recognition.py --model netvlad --output netvlad.pt
 ```bash
 cd SP_SLAM3
 export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
-
-# Run with SuperPoint vocabulary (recommended)
-./Examples/Monocular/mono_webcam Vocabulary/superpoint_voc.yml Examples/Monocular/EuRoC.yaml
-
-# Or run with ORB vocabulary
-./Examples/Monocular/mono_webcam Vocabulary/ORBvoc.txt Examples/Monocular/EuRoC.yaml
 ```
+
+### Live Webcam
+
+```bash
+./Examples/Monocular/mono_webcam Vocabulary/superpoint_voc.dbow3 Examples/Monocular/EuRoC.yaml
+```
+
+### EuRoC Dataset
+
+Download EuRoC MAV sequences from [https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) and extract them (e.g., `Examples/Monocular/MH_01_easy`).
+
+```bash
+# Single sequence
+./Examples/Monocular/mono_euroc \
+  Vocabulary/superpoint_voc.dbow3 \
+  Examples/Monocular/EuRoC.yaml \
+  Examples/Monocular/MH_01_easy \
+  Examples/Monocular/EuRoC_TimeStamps/MH01.txt
+
+# Output: CameraTrajectory.txt, KeyFrameTrajectory.txt
+```
+
+Available sequences and timestamps:
+
+| Difficulty | Sequence | Timestamp File |
+|-----------|----------|----------------|
+| Easy | MH_01_easy | EuRoC_TimeStamps/MH01.txt |
+| Easy | MH_02_easy | EuRoC_TimeStamps/MH02.txt |
+| Medium | MH_03_medium | EuRoC_TimeStamps/MH03.txt |
+| Difficult | MH_04_difficult | EuRoC_TimeStamps/MH04.txt |
+| Difficult | MH_05_difficult | EuRoC_TimeStamps/MH05.txt |
+| Easy | V1_01_easy | EuRoC_TimeStamps/V101.txt |
+| Medium | V1_02_medium | EuRoC_TimeStamps/V102.txt |
+| Difficult | V1_03_difficult | EuRoC_TimeStamps/V103.txt |
+| Easy | V2_01_easy | EuRoC_TimeStamps/V201.txt |
+| Medium | V2_02_medium | EuRoC_TimeStamps/V202.txt |
+| Difficult | V2_03_difficult | EuRoC_TimeStamps/V203.txt |
 
 ### Configuration
 
@@ -309,7 +370,34 @@ graph TD
 
 ---
 
-## 6. Roadmap
+## 6. Evaluation
+
+Ground truth trajectories for EuRoC sequences are included in `evaluation/Ground_truth/EuRoC_left_cam/`.
+
+### Using evo
+
+Install the [evo](https://github.com/MichaelGrupp/evo) evaluation tool:
+
+```bash
+pip install evo
+```
+
+Evaluate trajectory accuracy after running a sequence:
+
+```bash
+# Absolute Trajectory Error (ATE)
+evo_ape tum evaluation/Ground_truth/EuRoC_left_cam/MH01_GT.txt CameraTrajectory.txt -a -p --plot
+
+# Relative Pose Error (RPE)
+evo_rpe tum evaluation/Ground_truth/EuRoC_left_cam/MH01_GT.txt CameraTrajectory.txt -a -p --plot
+
+# Compare multiple results
+evo_res results/*.zip -p --plot
+```
+
+---
+
+## 7. Roadmap
 
 ### Matching Improvement
 
@@ -330,11 +418,11 @@ graph TD
 
 ---
 
-## 7. License
+## 8. License
 
 SP-SLAM3 is released under the [GPLv3 license](https://www.gnu.org/licenses/gpl-3.0.html), same as ORB-SLAM3.
 
-## 8. References
+## 9. References
 
 - [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3) - C. Campos, R. Elvira, J. J. G. Rodriguez, J. M. M. Montiel and J. D. Tardos
 - [SuperPoint](https://arxiv.org/abs/1712.07629) - D. DeTone, T. Malisiewicz and A. Rabinovich (MagicLeap)
