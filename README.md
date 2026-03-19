@@ -13,7 +13,7 @@ A modified version of [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3) that 
 **Result:** 1.84x better trajectory accuracy (ATE RMSE) compared to ORB-SLAM3 on EuRoC MH_01_easy.
 
 <p align="center">
-  <img src="imgs/pangolin_map_viewer.png" alt="SP-SLAM3 3D Map Viewer" width="600"/>
+  <img src="evaluation/trajectory_comparison_3d.png" alt="SP-SLAM3 vs Ground Truth Trajectory (3D)" width="800"/>
 </p>
 
 <p align="center">
@@ -366,10 +366,10 @@ graph TD
 
     subgraph SLAM ["ORB-SLAM3 Backend"]
         T["<b>Tracking</b><br/>Frame Processing<br/>Pose Estimation"]
-        LM["<b>Local Mapping</b><br/>Keyframe Processing<br/>Map Point Creation"]
-        LC["<b>Loop Closing</b><br/>Loop Detection<br/>Pose Graph Optimization"]
-
-        T --> LM --> LC
+        T -- "matches < 20" --> OF["<b>Optical Flow</b><br/>Lucas-Kanade<br/>Fallback Recovery"]
+        OF --> T
+        T --> LM["<b>Local Mapping</b><br/>Keyframe Processing<br/>Map Point Creation"]
+        LM --> LC["<b>Loop Closing</b><br/>Loop Detection<br/>Pose Graph Optimization"]
     end
 
     A --> PR{Place Recognition}
@@ -383,6 +383,7 @@ graph TD
     style NV fill:#1b4332,color:#fff
     style SP fill:#40916c,color:#fff
     style DB fill:#40916c,color:#fff
+    style OF fill:#e76f51,color:#fff
     style SLAM fill:#f0f0f0,stroke:#333,color:#000
     style T fill:#264653,color:#fff
     style LM fill:#264653,color:#fff
@@ -412,7 +413,7 @@ ORB-SLAM3 paper values from Campos et al. (2021), median of 5 runs.
 **Analysis:**
 - **Easy sequences:** SP-SLAM3 outperforms ORB-SLAM3 thanks to SuperPoint's more discriminative 256-dim float descriptors
 - **Difficult sequences:** Low tracking rate (~50%) causes significant drift. SuperPoint with `nLevels=1` (no scale pyramid) loses features during fast motion, while ORB-SLAM3's 8-level pyramid maintains robust tracking
-- **Key bottleneck:** Tracking loss, not descriptor quality — the optical flow fallback (in development) targets this directly
+- **Key bottleneck:** Tracking loss, not descriptor quality — the optical flow fallback activates automatically when matches drop below 20
 
 ### Using evo
 
