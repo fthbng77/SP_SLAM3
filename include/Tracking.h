@@ -128,6 +128,7 @@ public:
     Frame mLastFrame;
 
     cv::Mat mImGray;
+    cv::Mat mImGrayLast;  // Previous frame grayscale for optical flow fallback
 
     // Initialization Variables (Monocular)
     std::vector<int> mvIniLastMatches;
