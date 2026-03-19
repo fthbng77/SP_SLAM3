@@ -20,7 +20,14 @@ tools/convert_vocab
 
 # Dataset folders
 Examples/Monocular/MH_01_easy
+Examples/Monocular/MH_02_easy
+Examples/Monocular/MH_03_medium
+Examples/Monocular/MH_04_difficult
+Examples/Monocular/MH_05_difficult
 
 # Vocabulary files (generate locally with convert_vocab)
 Vocabulary/superpoint_voc.yml
 Vocabulary/superpoint_voc.dbow3
+
+# Model weights
+lightglue.pt
