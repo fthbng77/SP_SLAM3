@@ -133,22 +133,33 @@ def plot_trajectory_2d(all_data):
 def plot_trajectory_3d(all_data):
     """3D trajectory comparison for all sequences."""
     n = len(all_data)
-    fig = plt.figure(figsize=(4 * n, 4), dpi=150)
+    cols = min(n, 3)
+    rows = (n + cols - 1) // cols
+    fig = plt.figure(figsize=(6 * cols, 5 * rows), dpi=150)
 
     for i, (seq, data) in enumerate(all_data.items()):
-        ax = fig.add_subplot(1, n, i + 1, projection='3d')
+        ax = fig.add_subplot(rows, cols, i + 1, projection='3d')
         gt = data['gt_xyz']
         al = data['aligned']
-        ax.plot(gt[0], gt[1], gt[2], 'b-', linewidth=1.0, label='Ground Truth', alpha=0.7)
-        ax.plot(al[0], al[1], al[2], 'r-', linewidth=0.8, label='SP-SLAM3', alpha=0.7)
-        ax.set_title(seq.replace('_', ' ').title(), fontsize=9, fontweight='bold')
-        ax.set_xlabel('X', fontsize=7)
-        ax.set_ylabel('Y', fontsize=7)
-        ax.set_zlabel('Z', fontsize=7)
-        ax.tick_params(labelsize=6)
-        ax.legend(fontsize=6, loc='best')
 
-    fig.suptitle('SP-SLAM3 vs Ground Truth — EuRoC (3D)', fontsize=13, fontweight='bold', y=1.02)
+        # Start/end markers
+        ax.plot(gt[0], gt[1], gt[2], 'b-', linewidth=1.2, label='Ground Truth', alpha=0.7)
+        ax.plot(al[0], al[1], al[2], 'r-', linewidth=1.0, label='SP-SLAM3', alpha=0.8)
+        ax.scatter(*gt[:, 0], color='blue', s=40, marker='o', zorder=5)
+        ax.scatter(*gt[:, -1], color='blue', s=40, marker='s', zorder=5)
+        ax.scatter(*al[:, 0], color='red', s=40, marker='o', zorder=5)
+        ax.scatter(*al[:, -1], color='red', s=40, marker='s', zorder=5)
+
+        ax.set_title(f'{seq.replace("_", " ").title()}\nRMSE: {data["rmse"]:.4f} m',
+                      fontsize=11, fontweight='bold')
+        ax.set_xlabel('X (m)', fontsize=9)
+        ax.set_ylabel('Y (m)', fontsize=9)
+        ax.set_zlabel('Z (m)', fontsize=9)
+        ax.tick_params(labelsize=7)
+        ax.legend(fontsize=8, loc='upper left')
+        ax.view_init(elev=25, azim=45)
+
+    fig.suptitle('SP-SLAM3 vs Ground Truth — EuRoC (3D)', fontsize=15, fontweight='bold', y=1.02)
     plt.tight_layout()
     path = os.path.join(OUTPUT_DIR, 'trajectory_comparison_3d.png')
     fig.savefig(path, bbox_inches='tight', facecolor='white')
