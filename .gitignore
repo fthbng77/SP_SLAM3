@@ -31,3 +31,6 @@ Vocabulary/superpoint_voc.dbow3
 
 # Model weights
 lightglue.pt
+
+# IDE
+*.code-workspace
