@@ -2,8 +2,14 @@
 
 **SuperPoint + ORB-SLAM3**: A visual SLAM system that replaces the handcrafted ORB feature extractor with learned deep learning components — [SuperPoint](https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork) for feature detection/description, [LightGlue](https://github.com/cvg/LightGlue) for learned feature matching, and [NetVLAD](https://arxiv.org/abs/1511.07247)/[CosPlace](https://github.com/gmberton/CosPlace) for place recognition.
 
-![Pipeline Overview](imgs/img_1.jpg)
-![Results](imgs/img_2.jpg)
+<p align="center">
+  <img src="imgs/pangolin_map_viewer.png" alt="SP-SLAM3 3D Map Viewer" width="600"/>
+</p>
+
+<p align="center">
+  <img src="evaluation/trajectory_comparison_overlay.png" alt="SP-SLAM3 vs ORB-SLAM3 Trajectory Comparison" width="400"/>
+  <img src="evaluation/ate_over_time.png" alt="Absolute Trajectory Error Over Time" width="400"/>
+</p>
 
 [![Watch the video](https://img.youtube.com/vi/AWvs2rZ45cA/hqdefault.jpg)](https://youtu.be/AWvs2rZ45cA)
 
@@ -212,7 +218,7 @@ SP-SLAM3 supports optional learned models for matching and place recognition. Th
 ### LightGlue (Learned Matcher)
 
 ```bash
-pip install lightglue
+pip install git+https://github.com/cvg/LightGlue.git
 python scripts/export_lightglue.py --output lightglue.pt
 ```
 
@@ -381,6 +387,10 @@ Absolute Trajectory Error (ATE RMSE) on the [EuRoC MAV dataset](https://projects
 | Sequence | SP-SLAM3 | ORB-SLAM3 | Improvement |
 |----------|----------|-----------|-------------|
 | MH_01_easy | **0.0131 m** | 0.0241 m | 1.84x |
+
+<p align="center">
+  <img src="evaluation/trajectory_comparison_2d.png" alt="SP-SLAM3 vs ORB-SLAM3 2D Trajectory" width="700"/>
+</p>
 
 <details>
 <summary>Detailed MH01_easy results</summary>
