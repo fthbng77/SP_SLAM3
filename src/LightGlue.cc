@@ -70,6 +70,9 @@ std::vector<LightGlueMatch> LightGlue::match(
     if (!mbLoaded || kpts0.empty() || kpts1.empty())
         return matches;
 
+    // Serialize all GPU inference calls across threads
+    std::lock_guard<std::mutex> lock(getInferenceMutex());
+
     torch::NoGradGuard no_grad;
 
     // Prepare inputs

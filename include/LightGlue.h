@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <string>
+#include <mutex>
 
 #ifdef EIGEN_MPL2_ONLY
 #undef EIGEN_MPL2_ONLY
@@ -36,6 +37,12 @@ public:
         const cv::Size &image_size);
 
     bool isLoaded() const { return mbLoaded; }
+
+    // Thread-safe GPU inference mutex (shared across all LightGlue instances)
+    static std::mutex& getInferenceMutex() {
+        static std::mutex mtx;
+        return mtx;
+    }
 
 private:
     // Normalize keypoints to [-1, 1] range
