@@ -85,7 +85,9 @@ int main(int argc, char **argv)
     cout << "Toplam " << nImages << " görüntü yüklendi." << endl;
 
     // SLAM sistemini başlat
-    ORB_SLAM3::System SLAM(vocab_path, settings_path, ORB_SLAM3::System::MONOCULAR, true);
+    // Viewer disabled for benchmarking (set to true for interactive use)
+    bool bUseViewer = (getenv("SLAM_NO_VIEWER") == nullptr);
+    ORB_SLAM3::System SLAM(vocab_path, settings_path, ORB_SLAM3::System::MONOCULAR, bUseViewer);
 
     vector<float> vTimesTrack;
     vTimesTrack.resize(nImages);

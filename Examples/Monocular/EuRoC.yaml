@@ -51,8 +51,8 @@ SuperPoint.useFP16: 1
 
 # LightGlue learned matcher (optional - leave model_path empty to use brute-force L2)
 # Export with: python scripts/export_lightglue.py --output lightglue.pt
-# LightGlue.model_path: "lightglue.pt"
-# LightGlue.useFP16: 0
+LightGlue.model_path: "lightglue.pt"
+LightGlue.useFP16: 0
 
 # Learned place recognition for loop closing (optional - falls back to DBoW3)
 # Supports NetVLAD, CosPlace, or any model that outputs a global image descriptor.

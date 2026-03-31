@@ -52,8 +52,8 @@ for i in "${!SEQUENCES[@]}"; do
 
         cd "$SLAM_DIR"
 
-        # Run SLAM (suppress output)
-        timeout 300 "$BINARY" "$VOCAB" "$CONFIG" "$SEQ_PATH" "$TS_PATH" > /dev/null 2>&1 || true
+        # Run SLAM (suppress output, viewer disabled for headless benchmarking)
+        SLAM_NO_VIEWER=1 timeout 300 "$BINARY" "$VOCAB" "$CONFIG" "$SEQ_PATH" "$TS_PATH" > /dev/null 2>&1 || true
 
         # Save trajectory
         if [ -f "$SLAM_DIR/CameraTrajectory.txt" ]; then
