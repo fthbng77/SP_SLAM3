@@ -189,6 +189,8 @@ protected:
     bool TrackReferenceKeyFrame();
     void UpdateLastFrame();
     bool TrackWithMotionModel();
+    bool TrackWithLightGlue();
+    bool TrackWithOpticalFlow();
     bool PredictStateIMU();
 
     bool Relocalization();

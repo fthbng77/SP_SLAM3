@@ -22,8 +22,11 @@
 
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
+#include<opencv2/calib3d.hpp>
+#include<opencv2/video/tracking.hpp>
 
 #include"SPmatcher.h"
+#include"LightGlue.h"
 #include"FrameDrawer.h"
 #include"Converter.h"
 #include"Initializer.h"
@@ -1558,9 +1561,11 @@ void Tracking::Track()
                 else
                 {
                     //Verbose::PrintMess("TRACK: Track with motion model", Verbose::VERBOSITY_DEBUG);
-                    bOK = TrackWithMotionModel();
+                    bOK = TrackWithMotionModel();  // LightGlue primary, L2 fallback inside
                     if(!bOK)
                         bOK = TrackReferenceKeyFrame();
+                    if(!bOK)
+                        bOK = TrackWithOpticalFlow();
                 }
 
 
@@ -1574,8 +1579,13 @@ void Tracking::Track()
                     else
                     {
                         cout << "KF in map: " << pCurrentMap->KeyFramesInMap() << endl;
-                        mState = RECENTLY_LOST;
-                        mTimeStampLost = mCurrentFrame.mTimeStamp;
+                        if (pCurrentMap->KeyFramesInMap() <= 5)
+                            mState = LOST;  // Too few KFs for relocalization
+                        else
+                        {
+                            mState = RECENTLY_LOST;
+                            mTimeStampLost = mCurrentFrame.mTimeStamp;
+                        }
                     }
                 }
             }
@@ -1762,7 +1772,7 @@ void Tracking::Track()
                 mState=RECENTLY_LOST;
             }
             else
-                mState=LOST; // visual to lost
+                mState=LOST;
 
             if(mCurrentFrame.mnId>mnLastRelocFrameId+mMaxFrames)
             {
@@ -2471,118 +2481,76 @@ bool Tracking::TrackWithMotionModel()
 
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
-    // Project points seen in previous frame
-    int th;
+    int nmatches = 0;
+    bool bLightGlueUsed = false;
 
-    if(mSensor==System::STEREO)
-        th=7;
-    else
-        th=25;
-
-    int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
-
-    // If few matches, uses a wider window search
-    if(nmatches<20)
+    // ========== PRIMARY: LightGlue frame-to-frame matching ==========
+    auto pLG = SPmatcher::GetLightGlue();
+    if (pLG && pLG->isLoaded() &&
+        !mLastFrame.mDescriptors.empty() && !mCurrentFrame.mDescriptors.empty() &&
+        mLastFrame.N > 0 && mCurrentFrame.N > 0)
     {
-        Verbose::PrintMess("Not enough matches, wider window search!!", Verbose::VERBOSITY_NORMAL);
+        cv::Size imgSize(mCurrentFrame.mnMaxX - mCurrentFrame.mnMinX,
+                         mCurrentFrame.mnMaxY - mCurrentFrame.mnMinY);
+
+        if (imgSize.width > 0 && imgSize.height > 0)
+        {
+            std::vector<LightGlueMatch> lgMatches;
+            try {
+                lgMatches = pLG->match(
+                    mLastFrame.mvKeysUn, mLastFrame.mDescriptors,
+                    mCurrentFrame.mvKeysUn, mCurrentFrame.mDescriptors,
+                    imgSize);
+            } catch (...) {
+                lgMatches.clear();
+            }
+
+            for (auto &m : lgMatches)
+            {
+                if (m.idx0 < 0 || m.idx0 >= mLastFrame.N ||
+                    m.idx1 < 0 || m.idx1 >= mCurrentFrame.N)
+                    continue;
+
+                MapPoint* pMP = mLastFrame.mvpMapPoints[m.idx0];
+                if (pMP && !mLastFrame.mvbOutlier[m.idx0] && !pMP->isBad())
+                {
+                    mCurrentFrame.mvpMapPoints[m.idx1] = pMP;
+                    nmatches++;
+                }
+            }
+
+            if (nmatches >= 10)
+                bLightGlueUsed = true;
+        }
+    }
+
+    // ========== FALLBACK: L2 descriptor matching ==========
+    if (!bLightGlueUsed)
+    {
         fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
+        nmatches = 0;
 
-        nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
-        Verbose::PrintMess("Matches with wider search: " + to_string(nmatches), Verbose::VERBOSITY_NORMAL);
+        int th;
+        if(mSensor==System::STEREO)
+            th=7;
+        else
+            th=25;
 
+        nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
+
+        if(nmatches<20)
+        {
+            fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
+            nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
+        }
     }
 
     if(nmatches<20)
     {
-        // --- Optical Flow Fallback ---
-        // When descriptor matching fails, use Lucas-Kanade optical flow
-        // to track keypoints from the last frame into the current frame.
-        if (!mImGrayLast.empty() && !mImGray.empty()
-            && mImGrayLast.size() == mImGray.size() && mImGrayLast.type() == mImGray.type())
-        {
-            // Collect last frame keypoints that have valid MapPoints
-            std::vector<cv::Point2f> prevPts;
-            std::vector<MapPoint*> prevMPs;
-            std::vector<int> prevIdxs;
-
-            for (int i = 0; i < mLastFrame.N; i++)
-            {
-                MapPoint* pMP = mLastFrame.mvpMapPoints[i];
-                if (pMP && !mLastFrame.mvbOutlier[i] && !pMP->isBad())
-                {
-                    prevPts.push_back(mLastFrame.mvKeysUn[i].pt);
-                    prevMPs.push_back(pMP);
-                    prevIdxs.push_back(i);
-                }
-            }
-
-            if (!prevPts.empty())
-            {
-                std::vector<cv::Point2f> currPts;
-                std::vector<uchar> status;
-                std::vector<float> err;
-
-                cv::calcOpticalFlowPyrLK(
-                    mImGrayLast, mImGray,
-                    prevPts, currPts,
-                    status, err,
-                    cv::Size(21, 21), 3,
-                    cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01));
-
-                // Clear previous failed matches
-                fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
-                     static_cast<MapPoint*>(NULL));
-
-                nmatches = 0;
-                for (size_t i = 0; i < prevPts.size(); i++)
-                {
-                    if (!status[i] || err[i] > 12.0f)
-                        continue;
-
-                    // Check bounds
-                    if (currPts[i].x < mCurrentFrame.mnMinX || currPts[i].x > mCurrentFrame.mnMaxX ||
-                        currPts[i].y < mCurrentFrame.mnMinY || currPts[i].y > mCurrentFrame.mnMaxY)
-                        continue;
-
-                    // Find nearest keypoint in current frame to the tracked point
-                    float bestDist = 5.0f;  // max pixel distance
-                    int bestIdx = -1;
-
-                    std::vector<size_t> vIndices = mCurrentFrame.GetFeaturesInArea(
-                        currPts[i].x, currPts[i].y, 10.0f);
-
-                    for (auto idx : vIndices)
-                    {
-                        if (mCurrentFrame.mvpMapPoints[idx])
-                            continue;
-                        float dx = currPts[i].x - mCurrentFrame.mvKeysUn[idx].pt.x;
-                        float dy = currPts[i].y - mCurrentFrame.mvKeysUn[idx].pt.y;
-                        float dist = dx * dx + dy * dy;
-                        if (dist < bestDist * bestDist)
-                        {
-                            bestDist = std::sqrt(dist);
-                            bestIdx = idx;
-                        }
-                    }
-
-                    if (bestIdx >= 0)
-                    {
-                        mCurrentFrame.mvpMapPoints[bestIdx] = prevMPs[i];
-                        nmatches++;
-                    }
-                }
-                Verbose::PrintMess("Optical flow fallback matches: " + to_string(nmatches), Verbose::VERBOSITY_NORMAL);
-            }
-        }
-
-        if (nmatches < 20)
-        {
-            Verbose::PrintMess("Not enough matches even with optical flow!!", Verbose::VERBOSITY_NORMAL);
-            if (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO)
-                return true;
-            else
-                return false;
-        }
+        if (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO)
+            return true;
+        else
+            return false;
     }
 
     // Optimize frame pose with all matches
@@ -2624,6 +2592,284 @@ bool Tracking::TrackWithMotionModel()
         return true;
     else
         return nmatchesMap>=10;
+}
+
+bool Tracking::TrackWithLightGlue()
+{
+    auto pLG = SPmatcher::GetLightGlue();
+    if (!pLG || !pLG->isLoaded())
+        return false;
+
+    if (mVelocity.empty() || mLastFrame.mTcw.empty())
+        return false;
+
+    // Guard: need valid descriptors in both frames
+    if (mLastFrame.mDescriptors.empty() || mCurrentFrame.mDescriptors.empty())
+        return false;
+    if (mLastFrame.N == 0 || mCurrentFrame.N == 0)
+        return false;
+
+    // Predict pose with velocity model
+    mCurrentFrame.SetPose(mVelocity * mLastFrame.mTcw);
+
+    // LightGlue frame-to-frame matching
+    cv::Size imgSize(mCurrentFrame.mnMaxX - mCurrentFrame.mnMinX,
+                     mCurrentFrame.mnMaxY - mCurrentFrame.mnMinY);
+    if (imgSize.width <= 0 || imgSize.height <= 0)
+        return false;
+
+    std::vector<LightGlueMatch> lgMatches;
+    try {
+        lgMatches = pLG->match(
+            mLastFrame.mvKeysUn, mLastFrame.mDescriptors,
+            mCurrentFrame.mvKeysUn, mCurrentFrame.mDescriptors,
+            imgSize);
+    } catch (...) {
+        return false;
+    }
+
+    // Transfer MapPoints through LightGlue matches
+    fill(mCurrentFrame.mvpMapPoints.begin(),
+         mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
+
+    int nmatches = 0;
+    for (auto &m : lgMatches)
+    {
+        if (m.idx0 < 0 || m.idx0 >= mLastFrame.N ||
+            m.idx1 < 0 || m.idx1 >= mCurrentFrame.N)
+            continue;
+
+        MapPoint* pMP = mLastFrame.mvpMapPoints[m.idx0];
+        if (pMP && !mLastFrame.mvbOutlier[m.idx0] && !pMP->isBad())
+        {
+            mCurrentFrame.mvpMapPoints[m.idx1] = pMP;
+            nmatches++;
+        }
+    }
+
+    Verbose::PrintMess("LightGlue fallback matches: " + to_string(nmatches), Verbose::VERBOSITY_NORMAL);
+
+    if (nmatches < 10)
+        return false;
+
+    // Pose optimization
+    Optimizer::PoseOptimization(&mCurrentFrame);
+
+    // Discard outliers
+    int nmatchesMap = 0;
+    for (int i = 0; i < mCurrentFrame.N; i++)
+    {
+        if (mCurrentFrame.mvpMapPoints[i])
+        {
+            if (mCurrentFrame.mvbOutlier[i])
+            {
+                MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
+                mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
+                mCurrentFrame.mvbOutlier[i] = false;
+                if(i < mCurrentFrame.Nleft){
+                    pMP->mbTrackInView = false;
+                }
+                else{
+                    pMP->mbTrackInViewR = false;
+                }
+                pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+                nmatches--;
+            }
+            else if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                nmatchesMap++;
+        }
+    }
+
+    Verbose::PrintMess("LightGlue fallback inliers: " + to_string(nmatchesMap), Verbose::VERBOSITY_NORMAL);
+
+    if (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO)
+        return true;
+    else
+        return nmatchesMap >= 10;
+}
+
+bool Tracking::TrackWithOpticalFlow()
+{
+    // Guard: need valid last frame with pose
+    if (mLastFrame.mTcw.empty() || mLastFrame.N == 0)
+        return false;
+
+    // Guard: need previous grayscale image
+    if (mImGrayLast.empty() || mImGray.empty())
+        return false;
+    if (mImGrayLast.size() != mImGray.size() || mImGrayLast.type() != mImGray.type())
+        return false;
+
+    // Collect last frame keypoints that have valid MapPoints with 3D positions
+    // Use mvKeys (distorted) since optical flow operates on raw images (mImGray)
+    std::vector<cv::Point2f> prevPts;
+    std::vector<MapPoint*> prevMPs;
+
+    for (int i = 0; i < mLastFrame.N; i++)
+    {
+        MapPoint* pMP = mLastFrame.mvpMapPoints[i];
+        if (pMP && !mLastFrame.mvbOutlier[i] && !pMP->isBad())
+        {
+            prevPts.push_back(mLastFrame.mvKeys[i].pt);
+            prevMPs.push_back(pMP);
+        }
+    }
+
+    if (prevPts.size() < 10)
+        return false;
+
+    // Forward optical flow: last -> current
+    std::vector<cv::Point2f> currPts;
+    std::vector<uchar> statusFwd;
+    std::vector<float> errFwd;
+
+    cv::calcOpticalFlowPyrLK(
+        mImGrayLast, mImGray,
+        prevPts, currPts,
+        statusFwd, errFwd,
+        cv::Size(21, 21), 3,
+        cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01));
+
+    // Backward optical flow: current -> last (forward-backward consistency check)
+    std::vector<cv::Point2f> backPts;
+    std::vector<uchar> statusBwd;
+    std::vector<float> errBwd;
+
+    cv::calcOpticalFlowPyrLK(
+        mImGray, mImGrayLast,
+        currPts, backPts,
+        statusBwd, errBwd,
+        cv::Size(21, 21), 3,
+        cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01));
+
+    // Filter correspondences with forward-backward check
+    const float fbThreshold = 1.0f;
+    std::vector<cv::Point3f> pts3D;
+    std::vector<cv::Point2f> pts2D;
+    std::vector<MapPoint*> validMPs;
+
+    for (size_t i = 0; i < prevPts.size(); i++)
+    {
+        if (!statusFwd[i] || !statusBwd[i])
+            continue;
+
+        // Forward-backward reprojection error
+        float dx = prevPts[i].x - backPts[i].x;
+        float dy = prevPts[i].y - backPts[i].y;
+        if ((dx * dx + dy * dy) > fbThreshold * fbThreshold)
+            continue;
+
+        // Bounds check
+        if (currPts[i].x < mCurrentFrame.mnMinX || currPts[i].x > mCurrentFrame.mnMaxX ||
+            currPts[i].y < mCurrentFrame.mnMinY || currPts[i].y > mCurrentFrame.mnMaxY)
+            continue;
+
+        // Get 3D world position
+        cv::Mat Xw = prevMPs[i]->GetWorldPos();
+        pts3D.push_back(cv::Point3f(Xw.at<float>(0), Xw.at<float>(1), Xw.at<float>(2)));
+        pts2D.push_back(currPts[i]);
+        validMPs.push_back(prevMPs[i]);
+    }
+
+    Verbose::PrintMess("Optical flow: " + to_string(pts3D.size()) + " valid correspondences after FB check",
+                       Verbose::VERBOSITY_NORMAL);
+
+    if (pts3D.size() < 10)
+        return false;
+
+    // Solve PnP with RANSAC
+    cv::Mat rvec, tvec;
+    cv::Mat inliersMask;
+    cv::Mat K;
+    mCurrentFrame.mK.convertTo(K, CV_64F);
+    cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64F);
+
+    // Undistort tracked 2D points (optical flow operates on distorted images)
+    std::vector<cv::Point2f> pts2DUndist = pts2D;
+    if (mCurrentFrame.mDistCoef.at<float>(0) != 0.0f)
+    {
+        cv::Mat ptsMat(pts2D.size(), 1, CV_32FC2);
+        for (size_t i = 0; i < pts2D.size(); i++)
+            ptsMat.at<cv::Vec2f>(i) = cv::Vec2f(pts2D[i].x, pts2D[i].y);
+        cv::undistortPoints(ptsMat, ptsMat, mCurrentFrame.mK, mCurrentFrame.mDistCoef,
+                            cv::Mat(), mCurrentFrame.mK);
+        for (size_t i = 0; i < pts2D.size(); i++)
+            pts2DUndist[i] = cv::Point2f(ptsMat.at<cv::Vec2f>(i));
+    }
+
+    bool pnpSuccess = cv::solvePnPRansac(
+        pts3D, pts2DUndist,
+        K, distCoeffs,
+        rvec, tvec,
+        false,       // useExtrinsicGuess
+        200,         // iterationsCount
+        4.0f,        // reprojectionError (pixels)
+        0.99,        // confidence
+        inliersMask,
+        cv::SOLVEPNP_ITERATIVE);
+
+    if (!pnpSuccess || inliersMask.rows < 10)
+    {
+        Verbose::PrintMess("Optical flow PnP failed. Inliers: " + to_string(inliersMask.rows),
+                           Verbose::VERBOSITY_NORMAL);
+        return false;
+    }
+
+    Verbose::PrintMess("Optical flow PnP inliers: " + to_string(inliersMask.rows), Verbose::VERBOSITY_NORMAL);
+
+    // Convert PnP result to 4x4 Tcw matrix
+    cv::Mat R;
+    cv::Rodrigues(rvec, R);
+    cv::Mat Tcw = cv::Mat::eye(4, 4, CV_32F);
+    R.convertTo(Tcw.rowRange(0, 3).colRange(0, 3), CV_32F);
+    tvec.convertTo(Tcw.rowRange(0, 3).col(3), CV_32F);
+
+    mCurrentFrame.SetPose(Tcw);
+
+    // Assign inlier MapPoints to nearest current frame keypoints
+    // This allows TrackLocalMap to refine with descriptor matching
+    fill(mCurrentFrame.mvpMapPoints.begin(),
+         mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
+
+    int nAssigned = 0;
+    for (int k = 0; k < inliersMask.rows; k++)
+    {
+        int idx = inliersMask.at<int>(k);
+        cv::Point2f pt2d = pts2DUndist[idx];
+        MapPoint* pMP = validMPs[idx];
+
+        // Find nearest keypoint in current frame
+        std::vector<size_t> vIndices = mCurrentFrame.GetFeaturesInArea(pt2d.x, pt2d.y, 10.0f);
+
+        float bestDist = 100.0f;  // 10px squared
+        int bestIdx = -1;
+        for (auto featIdx : vIndices)
+        {
+            if (mCurrentFrame.mvpMapPoints[featIdx])
+                continue;
+            float ddx = pt2d.x - mCurrentFrame.mvKeysUn[featIdx].pt.x;
+            float ddy = pt2d.y - mCurrentFrame.mvKeysUn[featIdx].pt.y;
+            float d2 = ddx * ddx + ddy * ddy;
+            if (d2 < bestDist)
+            {
+                bestDist = d2;
+                bestIdx = (int)featIdx;
+            }
+        }
+
+        if (bestIdx >= 0)
+        {
+            mCurrentFrame.mvpMapPoints[bestIdx] = pMP;
+            nAssigned++;
+        }
+    }
+
+    Verbose::PrintMess("Optical flow: assigned " + to_string(nAssigned) + " MapPoints to frame keypoints",
+                       Verbose::VERBOSITY_NORMAL);
+
+    // Pose is set from PnP. Even if nAssigned is low, TrackLocalMap
+    // will project local map points using this pose and find descriptor matches.
+    return true;
 }
 
 bool Tracking::TrackLocalMap()
