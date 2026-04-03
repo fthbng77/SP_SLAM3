@@ -481,9 +481,10 @@ bool LoopClosing::NewDetectCommonRegions()
                     vpMergeBowCand.push_back(pKF);
             }
         }
-        else
+
+        // Fallback to DBoW3 if learned PR returned no candidates
+        if (vpLoopBowCand.empty() && vpMergeBowCand.empty())
         {
-            // Fallback: BoW candidate detection
             mpKeyFrameDB->DetectNBestCandidates(mpCurrentKF, vpLoopBowCand, vpMergeBowCand, 3);
         }
     }
