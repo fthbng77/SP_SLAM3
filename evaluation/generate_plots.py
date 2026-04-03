@@ -27,8 +27,8 @@ SEQUENCES = {
 }
 
 ORB_PAPER = {
-    'MH_01_easy': 0.034, 'MH_02_easy': 0.036, 'MH_03_medium': 0.035,
-    'MH_04_difficult': 0.048, 'MH_05_difficult': 0.033,
+    'MH_01_easy': 0.016, 'MH_02_easy': 0.027, 'MH_03_medium': 0.028,
+    'MH_04_difficult': 0.138, 'MH_05_difficult': 0.072,
 }
 
 
