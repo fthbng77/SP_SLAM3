@@ -121,6 +121,10 @@ std::vector<LightGlueMatch> LightGlue::match(
         std::cerr << "LightGlue inference failed: " << e.what() << std::endl;
     }
 
+    // Ensure all GPU operations complete before releasing mutex
+    if (mDevice.is_cuda())
+        torch::cuda::synchronize();
+
     return matches;
 }
 

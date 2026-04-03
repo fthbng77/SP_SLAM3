@@ -1,4 +1,5 @@
 #include "SuperPoint.h"
+#include "LightGlue.h"
 
 
 namespace ORB_SLAM3
@@ -105,6 +106,7 @@ void NMS2(std::vector<cv::KeyPoint> det, cv::Mat conf, std::vector<cv::KeyPoint>
 
 cv::Mat SPdetect(std::shared_ptr<SuperPoint> model, cv::Mat img, std::vector<cv::KeyPoint> &keypoints, double threshold, bool nms, bool cuda)
 {
+    std::lock_guard<std::mutex> lock(LightGlue::getInferenceMutex());
     auto x = torch::from_blob(img.ptr(), {1, 1, img.rows, img.cols}, torch::kUInt8)
                 .to(torch::kFloat32).div(255.0).contiguous();
 
@@ -129,6 +131,9 @@ cv::Mat SPdetect(std::shared_ptr<SuperPoint> model, cv::Mat img, std::vector<cv:
     desc = torch::grid_sampler(desc, grid, 0, 0, false).squeeze(0).squeeze(1);
     desc = torch::nn::functional::normalize(desc, torch::nn::functional::NormalizeFuncOptions().p(2).dim(0));
     desc = desc.transpose(0, 1).contiguous().to(torch::kCPU);
+
+    if (use_cuda)
+        torch::cuda::synchronize();
 
     cv::Mat descriptors_no_nms(cv::Size(desc.size(1), desc.size(0)), CV_32FC1, desc.data_ptr<float>());
 

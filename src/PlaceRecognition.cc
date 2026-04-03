@@ -1,4 +1,5 @@
 #include "PlaceRecognition.h"
+#include "LightGlue.h"
 #include "KeyFrame.h"
 #include <iostream>
 #include <algorithm>
@@ -65,6 +66,9 @@ torch::Tensor PlaceRecognition::extractDescriptor(const cv::Mat &image)
     if (!mbLoaded)
         return torch::Tensor();
 
+    // Serialize GPU inference across all threads (shared with LightGlue)
+    std::lock_guard<std::mutex> lock(LightGlue::getInferenceMutex());
+
     torch::NoGradGuard no_grad;
 
     auto input = preprocessImage(image).to(mDevice);
@@ -77,7 +81,13 @@ torch::Tensor PlaceRecognition::extractDescriptor(const cv::Mat &image)
     // L2 normalize
     output = output / output.norm();
 
-    return output.to(torch::kCPU).contiguous();
+    auto result = output.to(torch::kCPU).contiguous();
+
+    // Ensure all GPU operations complete before releasing mutex
+    if (mDevice.is_cuda())
+        torch::cuda::synchronize();
+
+    return result;
 }
 
 void PlaceRecognition::add(KeyFrame *pKF, const torch::Tensor &descriptor)
@@ -110,17 +120,24 @@ std::vector<KeyFrame*> PlaceRecognition::query(
 
     if (mvDatabase.empty()) return result;
 
-    // Stack all database descriptors into a matrix for batch cosine similarity
+    // Purge bad keyframes from database (lazy cleanup)
+    mvDatabase.erase(
+        std::remove_if(mvDatabase.begin(), mvDatabase.end(),
+            [](const Entry &e) { return e.pKF->isBad(); }),
+        mvDatabase.end());
+
+    // Stack valid database descriptors for batch cosine similarity
     std::vector<torch::Tensor> descList;
     std::vector<KeyFrame*> kfList;
+    int expectedDim = descriptor.size(0);
 
     for (auto &entry : mvDatabase) {
-        if (entry.pKF == pKF || entry.pKF->isBad())
+        if (entry.pKF == pKF)
             continue;
         if (spConnectedKFs.count(entry.pKF))
             continue;
-        // Only search within the same map
-        if (entry.pKF->GetMap() != pKF->GetMap())
+        // Skip descriptors with mismatched dimensions
+        if (entry.descriptor.size(0) != expectedDim)
             continue;
 
         descList.push_back(entry.descriptor);
@@ -129,18 +146,20 @@ std::vector<KeyFrame*> PlaceRecognition::query(
 
     if (descList.empty()) return result;
 
-    // [N, D] x [D, 1] -> [N] cosine similarities (descriptors are already normalized)
-    auto dbMatrix = torch::stack(descList);          // [N, D]
-    auto similarities = torch::mv(dbMatrix, descriptor);  // [N]
+    try {
+        auto dbMatrix = torch::stack(descList);          // [N, D]
+        auto similarities = torch::mv(dbMatrix, descriptor);  // [N]
 
-    // Get top-K
-    int k = std::min(nCandidates, (int)kfList.size());
-    auto [values, indices] = similarities.topk(k);
+        int k = std::min(nCandidates, (int)kfList.size());
+        auto [values, indices] = similarities.topk(k);
 
-    auto idx_acc = indices.accessor<int64_t, 1>();
-    result.reserve(k);
-    for (int i = 0; i < k; i++) {
-        result.push_back(kfList[idx_acc[i]]);
+        auto idx_acc = indices.accessor<int64_t, 1>();
+        result.reserve(k);
+        for (int i = 0; i < k; i++) {
+            result.push_back(kfList[idx_acc[i]]);
+        }
+    } catch (const std::exception &e) {
+        std::cerr << "PlaceRecognition query failed: " << e.what() << std::endl;
     }
 
     return result;

@@ -6,6 +6,7 @@
 
 #include "SPextractor.h"
 #include "SuperPoint.h"
+#include "LightGlue.h"
 
 using namespace cv;
 using namespace std;
@@ -85,9 +86,12 @@ SPextractor::SPextractor(int _nfeatures, float _scaleFactor, int _nlevels,
 {
     model = make_shared<SuperPoint>();
     torch::Device load_device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
-    torch::load(model, "superpoint.pt", load_device);
-    model->to(load_device);
-    model->eval();
+    {
+        std::lock_guard<std::mutex> lock(LightGlue::getInferenceMutex());
+        torch::load(model, "superpoint.pt", load_device);
+        model->to(load_device);
+        model->eval();
+    }
 
     mvScaleFactor.resize(nlevels);
     mvLevelSigma2.resize(nlevels);
@@ -361,6 +365,9 @@ void SPextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoint
     for (int level = 0; level < nlevels; ++level)
     {
         SPDetector detector(model, mbUseFP16);
+
+        // Lock GPU mutex for entire SuperPoint pipeline (detect + computeDescriptors)
+        std::lock_guard<std::mutex> gpuLock(LightGlue::getInferenceMutex());
         detector.detect(mvImagePyramid[level], true);
 
         const int minBorderX = EDGE_THRESHOLD - 3;
@@ -428,6 +435,10 @@ void SPextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoint
 
         cv::Mat desc;
         detector.computeDescriptors(keypoints, desc);
+
+        // Ensure all GPU operations complete before releasing mutex
+        if (torch::cuda::is_available())
+            torch::cuda::synchronize();
 
         if (!desc.empty())
         {
