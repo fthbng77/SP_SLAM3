@@ -402,19 +402,23 @@ graph TD
 
 Ground truth trajectories for EuRoC sequences are included in `evaluation/Ground_truth/EuRoC_left_cam/`.
 
-### Benchmark: SP-SLAM3 vs ORB-SLAM3
+### Benchmark: Comparison with State-of-the-Art
 
 Absolute Trajectory Error (ATE RMSE) on the [EuRoC MAV dataset](https://www.research-collection.ethz.ch/entities/researchdata/bcaf173e-5dac-484b-bc37-faf97a594f1f) (monocular, Sim(3) aligned, median of 5 runs):
 
-| Sequence | SP-SLAM3 | ORB-SLAM3 (paper) | Track Rate | vs ORB-SLAM3 |
-|----------|----------|-------------------|:----------:|:------------:|
-| MH_01_easy | **0.0255 m** | 0.034 m | 98.8% | 1.33x better |
-| MH_02_easy | **0.0160 m** | 0.036 m | 85.1% | 2.25x better |
-| MH_03_medium | 0.0523 m | **0.035 m** | 72.9% | 0.67x |
-| MH_04_difficult | 0.0847 m | **0.048 m** | 96.8% | 0.57x |
-| MH_05_difficult | 0.1317 m | **0.033 m** | 95.0% | 0.25x |
+| Sequence | **SP-SLAM3** | ORB-SLAM3 | DSO | DSM | DROID-SLAM | GO-SLAM |
+|----------|:--------:|:---------:|:---:|:---:|:----------:|:-------:|
+| MH_01_easy | 0.026 | 0.016 | 0.046 | 0.039 | **0.013** | 0.016 |
+| MH_02_easy | **0.016** | 0.027 | 0.046 | 0.036 | 0.014 | 0.014 |
+| MH_03_medium | 0.052 | 0.028 | 0.172 | 0.055 | **0.022** | 0.023 |
+| MH_04_difficult | 0.085 | 0.138 | 3.810 | 0.057 | **0.043** | 0.045 |
+| MH_05_difficult | 0.132 | 0.072 | 0.110 | 0.067 | **0.043** | 0.045 |
 
-ORB-SLAM3 paper values from Campos et al. (2021), median of 5 runs.
+- **Classical feature-based:** ORB-SLAM3, SP-SLAM3
+- **Direct methods:** DSO (Engel et al. 2018), DSM (Zubizarreta et al. 2020)
+- **Deep learning SLAM:** DROID-SLAM (Teed & Deng, NeurIPS 2021), GO-SLAM (Zhang et al. 2023)
+
+Sources: ORB-SLAM3 — Campos et al. (2021) Table II; DSO, DSM — ORB-SLAM3 paper; DROID-SLAM, GO-SLAM — DPV-SLAM (Lipson et al., ECCV 2024) Table 3. All values median of 5 runs.
 
 **Improvement over baseline SP-SLAM3 (L2-only matching):**
 
