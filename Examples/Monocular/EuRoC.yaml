@@ -57,8 +57,8 @@ LightGlue.useFP16: 0
 # Learned place recognition for loop closing (optional - falls back to DBoW3)
 # Supports NetVLAD, CosPlace, or any model that outputs a global image descriptor.
 # Export with: python scripts/export_place_recognition.py --output netvlad.pt
-# PlaceRecognition.model_path: "netvlad.pt"
-# PlaceRecognition.useFP16: 0
+PlaceRecognition.model_path: "cosplace.pt"
+PlaceRecognition.useFP16: 0
 #--------------------------------------------------------------------------------------------
 # Viewer Parameters
 #---------------------------------------------------------------------------------------------
