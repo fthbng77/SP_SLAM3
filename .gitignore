@@ -31,6 +31,10 @@ Vocabulary/superpoint_voc.dbow3
 
 # Model weights
 lightglue.pt
+superpoint.pt
+cosplace.pt
+netvlad.pt
+*.pt
 
 # IDE
 *.code-workspace
