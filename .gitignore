@@ -25,10 +25,10 @@ Examples/Monocular/MH_03_medium
 Examples/Monocular/MH_04_difficult
 Examples/Monocular/MH_05_difficult
 evaluation/results_improved
+evaluation/results_tuned_v1
 # Vocabulary files (generate locally with convert_vocab)
 Vocabulary/superpoint_voc.yml
 Vocabulary/superpoint_voc.dbow3
-
 # Model weights
 lightglue.pt
 superpoint.pt

@@ -35,8 +35,8 @@ using namespace std;
 namespace ORB_SLAM3
 {
  
-const float SPmatcher::TH_HIGH = 0.70;
-const float SPmatcher::TH_LOW = 0.30;
+const float SPmatcher::TH_HIGH = 0.55;
+const float SPmatcher::TH_LOW = 0.25;
 const int SPmatcher::HISTO_LENGTH = 30;
 
 std::shared_ptr<LightGlue> SPmatcher::mpLightGlue = nullptr;

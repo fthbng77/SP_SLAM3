@@ -408,11 +408,11 @@ Absolute Trajectory Error (ATE RMSE) on the [EuRoC MAV dataset](https://www.rese
 
 | Sequence | **SP-SLAM3** | ORB-SLAM3 | DSO | DSM | DROID-SLAM | GO-SLAM |
 |----------|:--------:|:---------:|:---:|:---:|:----------:|:-------:|
-| MH_01_easy | 0.026 | 0.016 | 0.046 | 0.039 | **0.013** | 0.016 |
-| MH_02_easy | **0.016** | 0.027 | 0.046 | 0.036 | 0.014 | 0.014 |
-| MH_03_medium | 0.052 | 0.028 | 0.172 | 0.055 | **0.022** | 0.023 |
-| MH_04_difficult | 0.085 | 0.138 | 3.810 | 0.057 | **0.043** | 0.045 |
-| MH_05_difficult | 0.132 | 0.072 | 0.110 | 0.067 | **0.043** | 0.045 |
+| MH_01_easy | 0.021 | 0.016 | 0.046 | 0.039 | **0.013** | 0.016 |
+| MH_02_easy | **0.014** | 0.027 | 0.046 | 0.036 | 0.014 | 0.014 |
+| MH_03_medium | 0.044 | 0.028 | 0.172 | 0.055 | **0.022** | 0.023 |
+| MH_04_difficult | 0.105 | 0.138 | 3.810 | 0.057 | **0.043** | 0.045 |
+| MH_05_difficult | 0.145 | 0.072 | 0.110 | 0.067 | **0.043** | 0.045 |
 
 - **Classical feature-based:** ORB-SLAM3, SP-SLAM3
 - **Direct methods:** DSO (Engel et al. 2018), DSM (Zubizarreta et al. 2020)
@@ -424,11 +424,11 @@ Sources: ORB-SLAM3 — Campos et al. (2021) Table II; DSO, DSM — ORB-SLAM3 pap
 
 | Sequence | Baseline ATE | Improved ATE | ATE Change | Tracking Improvement |
 |----------|:------------:|:------------:|:----------:|:--------------------:|
-| MH_01_easy | 0.0218 m | 0.0255 m | +17% | 90.4% -> 98.8% |
-| MH_02_easy | 0.0279 m | **0.0160 m** | **-43%** | 85.9% -> 85.1% |
-| MH_03_medium | 0.0665 m | **0.0523 m** | **-21%** | 49.3% -> 72.9% |
-| MH_04_difficult | 0.1236 m | **0.0847 m** | **-32%** | 58.3% -> 96.8% |
-| MH_05_difficult | 0.1082 m | 0.1317 m | +22% | 50.5% -> 95.0% |
+| MH_01_easy | 0.0218 m | **0.0211 m** | **-3%**   | 90.4% -> 93.8% |
+| MH_02_easy | 0.0279 m | **0.0140 m** | **-50%**  | 85.9% -> 84.4% |
+| MH_03_medium | 0.0665 m | **0.0444 m** | **-33%**  | 49.3% -> 88.2% |
+| MH_04_difficult | 0.1236 m | **0.1053 m** | **-15%**  | 58.3% -> 97.5% |
+| MH_05_difficult | 0.1082 m | 0.1445 m     | +34%      | 50.5% -> 89.7% |
 
 **Analysis:**
 - **Tracking robustness dramatically improved:** Difficult sequences jumped from ~50-58% to ~95-97% tracking rate thanks to LightGlue primary matching and optical flow PnP fallback

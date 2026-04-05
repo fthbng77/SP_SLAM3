@@ -482,11 +482,17 @@ bool LoopClosing::NewDetectCommonRegions()
             }
         }
 
-        // Fallback to DBoW3 if learned PR returned no candidates
-        if (vpLoopBowCand.empty() && vpMergeBowCand.empty())
-        {
-            mpKeyFrameDB->DetectNBestCandidates(mpCurrentKF, vpLoopBowCand, vpMergeBowCand, 3);
-        }
+        // Always query DBoW3 as well and combine non-duplicate candidates
+        vector<KeyFrame*> vpLoopBowCandExtra, vpMergeBowCandExtra;
+        mpKeyFrameDB->DetectNBestCandidates(mpCurrentKF, vpLoopBowCandExtra, vpMergeBowCandExtra, 3);
+
+        for (auto* pKF : vpLoopBowCandExtra)
+            if (std::find(vpLoopBowCand.begin(), vpLoopBowCand.end(), pKF) == vpLoopBowCand.end())
+                vpLoopBowCand.push_back(pKF);
+
+        for (auto* pKF : vpMergeBowCandExtra)
+            if (std::find(vpMergeBowCand.begin(), vpMergeBowCand.end(), pKF) == vpMergeBowCand.end())
+                vpMergeBowCand.push_back(pKF);
     }
 
     // Check the BoW candidates if the geometric candidate list is empty
@@ -537,12 +543,12 @@ bool LoopClosing::DetectAndReffineSim3FromLastKF(KeyFrame* pCurrentKF, KeyFrame*
     int nProjOptMatches = 50;
     int nProjMatchesRep = 100;
 
-    /*if(mpTracker->mSensor==System::IMU_MONOCULAR ||mpTracker->mSensor==System::IMU_STEREO)
+    if(mpTracker->mSensor==System::MONOCULAR || mpTracker->mSensor==System::IMU_MONOCULAR)
     {
-        nProjMatches = 50;
-        nProjOptMatches = 50;
-        nProjMatchesRep = 80;
-    }*/
+        nProjMatches = 25;
+        nProjOptMatches = 40;
+        nProjMatchesRep = 70;
+    }
 
     if(nNumProjMatches >= nProjMatches)
     {
@@ -588,14 +594,12 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
     int nSim3Inliers = 20;
     int nProjMatches = 50;
     int nProjOptMatches = 80;
-    /*if(mpTracker->mSensor==System::IMU_MONOCULAR ||mpTracker->mSensor==System::IMU_STEREO)
+
+    if(mpTracker->mSensor==System::MONOCULAR || mpTracker->mSensor==System::IMU_MONOCULAR)
     {
-        nBoWMatches = 20;
-        nBoWInliers = 15;
-        nSim3Inliers = 20;
-        nProjMatches = 35;
+        nProjMatches = 30;
         nProjOptMatches = 50;
-    }*/
+    }
 
     set<KeyFrame*> spConnectedKeyFrames = mpCurrentKF->GetConnectedKeyFrames();
 

@@ -157,18 +157,20 @@ target_link_libraries(${PROJECT_NAME}
 #Monocular examples
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
 
+# Force system OpenCV library path to avoid /usr/local/lib ABI conflict
+link_directories(BEFORE /usr/lib/x86_64-linux-gnu)
 
 add_executable(mono_webcam
         Examples/Monocular/mono_webcam.cc)
-target_link_libraries(mono_webcam ${PROJECT_NAME})
+target_link_libraries(mono_webcam ${PROJECT_NAME} ${OpenCV_LIBS})
 
 add_executable(mono_live
         Examples/Monocular/mono_live.cc)
-target_link_libraries(mono_live ${PROJECT_NAME})
+target_link_libraries(mono_live ${PROJECT_NAME} ${OpenCV_LIBS})
 
 add_executable(mono_euroc
         Examples/Monocular/mono_euroc.cc)
-target_link_libraries(mono_euroc ${PROJECT_NAME})
+target_link_libraries(mono_euroc ${PROJECT_NAME} ${OpenCV_LIBS})
 
 # Tools
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/tools)
