@@ -183,7 +183,15 @@ void SPDetector::detect(cv::Mat &img, bool use_cuda)
     torch::NoGradGuard no_grad;
     torch::Device device = (use_cuda && torch::cuda::is_available()) ? torch::kCUDA : torch::kCPU;
 
-    auto x = torch::from_blob(img.data, {1, 1, img.rows, img.cols}, torch::kUInt8)
+    // Apply CLAHE to handle glare/overexposure: redistributes contrast locally
+    // so saturated regions produce meaningful gradients for SuperPoint.
+    // Skipping glare frames causes tracking-state inconsistency — preprocessing
+    // is safer than frame dropping.
+    cv::Mat processed;
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(2.0, cv::Size(8, 8));
+    clahe->apply(img, processed);
+
+    auto x = torch::from_blob(processed.data, {1, 1, processed.rows, processed.cols}, torch::kUInt8)
                  .to(torch::kFloat32)
                  .div(255.0)
                  .contiguous()

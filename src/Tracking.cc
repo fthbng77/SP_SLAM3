@@ -3549,6 +3549,12 @@ bool Tracking::Relocalization()
         return false;
     }
 
+    // Cap candidates to avoid freeze when many keyframes exist after prolonged
+    // tracking loss (e.g. glare). DBoW3 already ranks by score so top-N suffices.
+    const int kMaxRelocCandidates = 10;
+    if((int)vpCandidateKFs.size() > kMaxRelocCandidates)
+        vpCandidateKFs.resize(kMaxRelocCandidates);
+
     const int nKFs = vpCandidateKFs.size();
 
     // We perform first an ORB matching with each candidate
