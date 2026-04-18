@@ -2459,13 +2459,9 @@ void Tracking::UpdateLastFrame()
 
 bool Tracking::TrackWithMotionModel()
 {
-    ORBmatcher matcher(0.75,true);
-
     // Update last frame pose according to its reference keyframe
     // Create "visual odometry" points if in Localization Mode
     UpdateLastFrame();
-
-
 
     if (mpAtlas->isImuInitialized() && (mCurrentFrame.mnId>mnLastRelocFrameId+mnFramesToResetIMU))
     {
@@ -2478,13 +2474,11 @@ bool Tracking::TrackWithMotionModel()
         mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
     }
 
-
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
     int nmatches = 0;
-    bool bLightGlueUsed = false;
 
-    // ========== PRIMARY: LightGlue frame-to-frame matching ==========
+    // LightGlue frame-to-frame matching
     auto pLG = SPmatcher::GetLightGlue();
     if (pLG && pLG->isLoaded() &&
         !mLastFrame.mDescriptors.empty() && !mCurrentFrame.mDescriptors.empty() &&
@@ -2518,30 +2512,6 @@ bool Tracking::TrackWithMotionModel()
                     nmatches++;
                 }
             }
-
-            if (nmatches >= 10)
-                bLightGlueUsed = true;
-        }
-    }
-
-    // ========== FALLBACK: L2 descriptor matching ==========
-    if (!bLightGlueUsed)
-    {
-        fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
-        nmatches = 0;
-
-        int th;
-        if(mSensor==System::STEREO)
-            th=7;
-        else
-            th=15;
-
-        nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
-
-        if(nmatches<20)
-        {
-            fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
-            nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th+10,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
         }
     }
 
