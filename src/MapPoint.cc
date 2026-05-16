@@ -102,8 +102,19 @@ MapPoint::MapPoint(const cv::Mat &Pos, Map* pMap, Frame* pFrame, const int &idxF
     const float levelScaleFactor =  pFrame->mvScaleFactors[level];
     const int nLevels = pFrame->mnScaleLevels;
 
-    mfMaxDistance = dist*levelScaleFactor;
-    mfMinDistance = mfMaxDistance/pFrame->mvScaleFactors[nLevels-1];
+    if(nLevels <= 1)
+    {
+        // SuperPoint single-level: scale pyramid collapses (±20% window).
+        // Use wide depth invariance window so map points remain visible
+        // as the camera translates away from their originating viewpoint.
+        mfMaxDistance = dist*10.0f;
+        mfMinDistance = dist/10.0f;
+    }
+    else
+    {
+        mfMaxDistance = dist*levelScaleFactor;
+        mfMinDistance = mfMaxDistance/pFrame->mvScaleFactors[nLevels-1];
+    }
 
     pFrame->mDescriptors.row(idxF).copyTo(mDescriptor);
 
@@ -486,8 +497,16 @@ void MapPoint::UpdateNormalAndDepth()
 
     {
         unique_lock<mutex> lock3(mMutexPos);
-        mfMaxDistance = dist*levelScaleFactor;
-        mfMinDistance = mfMaxDistance/pRefKF->mvScaleFactors[nLevels-1];
+        if(nLevels <= 1)
+        {
+            mfMaxDistance = dist*10.0f;
+            mfMinDistance = dist/10.0f;
+        }
+        else
+        {
+            mfMaxDistance = dist*levelScaleFactor;
+            mfMinDistance = mfMaxDistance/pRefKF->mvScaleFactors[nLevels-1];
+        }
         mNormalVector = normal/n;
     }
 }

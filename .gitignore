@@ -26,6 +26,7 @@ Examples/Monocular/MH_04_difficult
 Examples/Monocular/MH_05_difficult
 evaluation/results_improved
 evaluation/results_tuned_v1
+evaluation/results_distfix
 # Vocabulary files (generate locally with convert_vocab)
 Vocabulary/superpoint_voc.yml
 Vocabulary/superpoint_voc.dbow3
@@ -35,6 +36,6 @@ superpoint.pt
 cosplace.pt
 netvlad.pt
 *.pt
-
+CLAUDE.md
 # IDE
 *.code-workspace

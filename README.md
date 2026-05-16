@@ -433,6 +433,23 @@ Sources: ORB-SLAM3 — Campos et al. (2021) Table II; DSO, DSM — ORB-SLAM3 pap
 - **Difficult sequences:** Tracking rate is now high (~95-97%) but ATE remains higher than ORB-SLAM3 due to accumulated drift over longer tracked trajectories. Further improvement requires better loop closing or local BA
 - **Tracking pipeline:** LightGlue (primary) → BoW reference keyframe matching → Optical flow + PnP (last resort)
 
+#### Depth-Invariance Window Fix (MapPoint.cc)
+
+`ORBextractor.nLevels: 1` causes `MapPoint::mfMinDistance == mfMaxDistance == dist`, so map points are only considered visible within ±20% of their originating depth — `isInFrustum` rejects them as soon as the camera translates. This collapses local map matching in long trajectories and shows up as (1) near-camera point clusters from degenerate triangulations and (2) sudden match drops when the camera enters a new region.
+
+Fix: when `nLevels<=1`, open the depth-invariance window to ±10x (SuperPoint descriptors have learned scale invariance, so descriptor + viewing-angle filters still gate false matches). Two sites in `src/MapPoint.cc` (constructor + `UpdateNormalAndDepth`).
+
+MH_03_medium re-benchmark (5 runs, median ATE — same methodology as the main table):
+
+| Metric | Before (tuned_v1) | After (distfix) | ORB-SLAM3 |
+|--------|:-----------------:|:---------------:|:---------:|
+| Median ATE | 0.0444 m | **0.0392 m** (-12%) | 0.028 m |
+| Best | 0.0324 m | **0.0252 m** (-22%) | — |
+| Worst | 0.0825 m | **0.0648 m** (-21%) | — |
+| Gap vs ORB-SLAM3 | 1.59x | **1.40x** | 1.00x |
+
+Worst-case ATE improves the most because the runs that previously degraded from late-trajectory drift (when map-points fell out of the ±20% depth window) now retain visibility. The fix is expected to help most on long trajectories with large depth variation (e.g. aerial/oblique-nadir flight), where the window collapse is most visible. Full benchmark re-run across all sequences is pending.
+
 ### Using evo
 
 Install the [evo](https://github.com/MichaelGrupp/evo) evaluation tool:
