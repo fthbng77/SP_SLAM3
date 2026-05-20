@@ -1,0 +1,60 @@
+%YAML:1.0
+
+#--------------------------------------------------------------------------------------------
+# Camera Parameters (THYZ 2025 — 960x540, 4K görüntüler bu çözünürlüğe küçültülür)
+#--------------------------------------------------------------------------------------------
+Camera.type: "PinHole"
+
+Camera.fx: 670.13
+Camera.fy: 503.14
+Camera.cx: 477.12
+Camera.cy: 281.20
+
+Camera.k1: 0.0798
+Camera.k2: -0.1867
+Camera.p1: 0.0
+Camera.p2: 0.0
+
+Camera.width: 960
+Camera.height: 540
+
+# Kare hızı (times.txt aralığına göre ~7.5)
+Camera.fps: 7.5
+
+# Renk düzeni (RGB=1)
+Camera.RGB: 1
+
+#--------------------------------------------------------------------------------------------
+# SuperPoint / Özellik Çıkarıcı Ayarları
+#--------------------------------------------------------------------------------------------
+ORBextractor.nFeatures: 800
+ORBextractor.scaleFactor: 1.2
+ORBextractor.nLevels: 1
+ORBextractor.iniThFAST: 0.155
+ORBextractor.minThFAST: 0.055
+
+# FP16 KAPALI: her frame model->to(kFloat16) kararsızlık/çökme yapıyor, kazanç minimal
+SuperPoint.useFP16: 0
+
+#--------------------------------------------------------------------------------------------
+# Eşleştirme ve Yer Tanıma Modelleri
+#--------------------------------------------------------------------------------------------
+LightGlue.model_path: "lightglue.pt"
+LightGlue.useFP16: 0
+
+PlaceRecognition.model_path: "cosplace.pt"
+PlaceRecognition.useFP16: 0
+
+#--------------------------------------------------------------------------------------------
+# Görselleştirici (Viewer) Ayarları
+#--------------------------------------------------------------------------------------------
+Viewer.KeyFrameSize: 0.05
+Viewer.KeyFrameLineWidth: 1
+Viewer.GraphLineWidth: 0.9
+Viewer.PointSize: 2
+Viewer.CameraSize: 0.08
+Viewer.CameraLineWidth: 3
+Viewer.ViewpointX: 0
+Viewer.ViewpointY: -0.7
+Viewer.ViewpointZ: -1.8
+Viewer.ViewpointF: 500

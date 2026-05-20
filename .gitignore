@@ -27,6 +27,7 @@ Examples/Monocular/MH_05_difficult
 evaluation/results_improved
 evaluation/results_tuned_v1
 evaluation/results_distfix
+Examples/Monocular/THYZ_2025_Oturum_2
 # Vocabulary files (generate locally with convert_vocab)
 Vocabulary/superpoint_voc.yml
 Vocabulary/superpoint_voc.dbow3
