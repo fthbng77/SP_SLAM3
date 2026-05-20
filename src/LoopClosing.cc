@@ -631,8 +631,17 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
 
         // Current KF against KF with covisibles version
         std::vector<KeyFrame*> vpCovKFi = pKFi->GetBestCovisibilityKeyFrames(nNumCovisibles);
-        vpCovKFi.push_back(vpCovKFi[0]);
-        vpCovKFi[0] = pKFi;
+        if(vpCovKFi.empty())
+        {
+            // Aday KF'in covisible komşusu yok: sadece kendisini kullan
+            // (boş vektörde vpCovKFi[0] erişimi segfault yapıyordu)
+            vpCovKFi.push_back(pKFi);
+        }
+        else
+        {
+            vpCovKFi.push_back(vpCovKFi[0]);
+            vpCovKFi[0] = pKFi;
+        }
 
         std::vector<std::vector<MapPoint*> > vvpMatchedMPs;
         vvpMatchedMPs.resize(vpCovKFi.size());
