@@ -1,0 +1,32 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-cpu:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache LibTorch
+        id: cache-libtorch
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/libtorch
+          key: libtorch-cpu-2.2.2
+
+      - name: Build (CPU-only)
+        run: bash build.sh --no-cuda
+
+      - name: Derleme çıktılarını kontrol et
+        run: |
+          test -f lib/libORB_SLAM3.so
+          test -f Examples/Monocular/mono_euroc
+          test -f Examples/Monocular/mono_teknofest
+          echo "Build OK"
